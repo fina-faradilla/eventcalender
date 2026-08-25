@@ -21,13 +21,13 @@ class ReminderMessageBuilder
         $venue = $event->venue?->name ?? $event->custom_venue ?? 'lokasi acara';
 
         return match ($type) {
-            ReminderType::H7 => [
-                'title' => 'Pengingat acara H-7',
-                'message' => "Acara {$name} akan dilaksanakan 7 hari lagi pada {$date} pukul {$time} di {$venue}.",
-            ],
             ReminderType::H3 => [
                 'title' => 'Pengingat acara H-3',
                 'message' => "Acara {$name} akan dilaksanakan 3 hari lagi pada {$date} pukul {$time} di {$venue}.",
+            ],
+            ReminderType::H2 => [
+                'title' => 'Pengingat acara H-2',
+                'message' => "Acara {$name} akan dilaksanakan 2 hari lagi pada {$date} pukul {$time} di {$venue}.",
             ],
             ReminderType::H1 => [
                 'title' => 'Pengingat acara H-1',

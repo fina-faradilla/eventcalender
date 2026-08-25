@@ -9,6 +9,7 @@ use App\Models\Reminder;
 use App\Models\User;
 use App\Models\Venue;
 use App\Services\EventReminderService;
+use Carbon\CarbonImmutable;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
@@ -20,51 +21,74 @@ class EventReminderTest extends TestCase
     {
         parent::setUp();
         $this->seed();
+        Event::query()->delete();
     }
 
-    public function test_h7_notification_uses_dynamic_event_context(): void
+    public function test_reminder_schedule_uses_the_event_start_in_jakarta(): void
     {
-        $notification = $this->send(ReminderType::H7);
-
-        $this->assertSame('Pengingat acara H-7', $notification->title);
-        $this->assertSame('Acara Training Internal akan dilaksanakan 7 hari lagi pada 20 Agu 2026 pukul 09:00 di Training Center.', $notification->message);
-        $this->assertStringNotContainsString('H-3', $notification->message);
-        $this->assertStringNotContainsString('H-1', $notification->message);
-        $this->assertStringNotContainsString('1 jam', $notification->message);
-        $this->assertStringNotContainsString('telah disimulasikan', $notification->message);
-    }
-
-    public function test_h3_notification_identifies_three_days_remaining(): void
-    {
-        $notification = $this->send(ReminderType::H3);
-
-        $this->assertSame('Pengingat acara H-3', $notification->title);
-        $this->assertStringContainsString('3 hari lagi', $notification->message);
-    }
-
-    public function test_h1_notification_uses_natural_tomorrow_wording(): void
-    {
-        $notification = $this->send(ReminderType::H1);
-
-        $this->assertSame('Pengingat acara H-1', $notification->title);
-        $this->assertStringContainsString('akan dilaksanakan besok', $notification->message);
-    }
-
-    public function test_h1_hour_notification_identifies_one_hour_remaining(): void
-    {
-        $notification = $this->send(ReminderType::H1Hour);
-
-        $this->assertSame('Pengingat acara 1 jam lagi', $notification->title);
-        $this->assertSame('Acara Training Internal akan dimulai 1 jam lagi pada pukul 09:00 di Training Center.', $notification->message);
-    }
-
-    public function test_repeating_same_reminder_does_not_create_duplicates(): void
-    {
-        $event = $this->event();
+        $event = $this->event(CarbonImmutable::parse('2026-08-20 09:00', 'Asia/Jakarta'));
         $service = app(EventReminderService::class);
 
-        $service->send($event, ReminderType::H1);
-        $service->send($event, ReminderType::H1);
+        $this->assertSame('2026-08-17 09:00', $service->scheduledAt($event, ReminderType::H3)->format('Y-m-d H:i'));
+        $this->assertSame('2026-08-18 09:00', $service->scheduledAt($event, ReminderType::H2)->format('Y-m-d H:i'));
+        $this->assertSame('2026-08-19 09:00', $service->scheduledAt($event, ReminderType::H1)->format('Y-m-d H:i'));
+        $this->assertSame('2026-08-20 08:00', $service->scheduledAt($event, ReminderType::H1Hour)->format('Y-m-d H:i'));
+        $this->assertSame('Asia/Jakarta', $service->scheduledAt($event, ReminderType::H3)->timezoneName);
+    }
+
+    public function test_due_reminder_is_sent_with_dynamic_context(): void
+    {
+        $start = CarbonImmutable::parse('2026-08-20 09:00', 'Asia/Jakarta');
+        $event = $this->event($start);
+
+        $result = app(EventReminderService::class)->processDue($start->subDays(2));
+
+        $notification = AppNotification::where('event_id', $event->id)->firstOrFail();
+        $this->assertSame(1, $result['reminders_due']);
+        $this->assertSame(ReminderType::H2->value, $notification->reminder_type);
+        $this->assertSame('Pengingat acara H-2', $notification->title);
+        $this->assertSame('Acara Training Internal akan dilaksanakan 2 hari lagi pada 20 Agu 2026 pukul 09:00 di Training Center.', $notification->message);
+    }
+
+    public function test_scheduler_does_not_send_before_or_after_the_due_window(): void
+    {
+        $start = CarbonImmutable::parse('2026-08-20 09:00', 'Asia/Jakarta');
+        $event = $this->event($start);
+        $service = app(EventReminderService::class);
+
+        $service->processDue($start->subDays(3)->subSecond());
+        $service->processDue($start->subDays(3)->addMinutes(2));
+
+        $this->assertDatabaseMissing('notifications', ['event_id' => $event->id, 'reminder_type' => ReminderType::H3->value]);
+        $this->assertSame(0, Reminder::count());
+    }
+
+    public function test_each_scheduler_pass_only_sends_the_current_reminder_type(): void
+    {
+        $start = CarbonImmutable::parse('2026-08-20 09:00', 'Asia/Jakarta');
+        $event = $this->event($start);
+        $service = app(EventReminderService::class);
+
+        foreach ([ReminderType::H3, ReminderType::H2, ReminderType::H1, ReminderType::H1Hour] as $type) {
+            $service->processDue($service->scheduledAt($event, $type));
+        }
+
+        $this->assertEqualsCanonicalizing(
+            ['H3', 'H2', 'H1', 'H1_HOUR'],
+            AppNotification::where('event_id', $event->id)->pluck('reminder_type')->all(),
+        );
+        $this->assertDatabaseMissing('notifications', ['event_id' => $event->id, 'reminder_type' => 'H7']);
+    }
+
+    public function test_repeated_scheduler_pass_does_not_create_duplicates(): void
+    {
+        $start = CarbonImmutable::parse('2026-08-20 09:00', 'Asia/Jakarta');
+        $event = $this->event($start);
+        $service = app(EventReminderService::class);
+        $due = $start->subDay();
+
+        $service->processDue($due);
+        $service->processDue($due->addMinute());
 
         $this->assertSame(1, AppNotification::where([
             'event_id' => $event->id,
@@ -79,70 +103,57 @@ class EventReminderTest extends TestCase
         ])->count());
     }
 
-    public function test_ineligible_event_statuses_do_not_receive_reminders(): void
+    public function test_pic_and_currently_assigned_staff_receive_due_notifications(): void
     {
-        foreach (['DRAFT', 'PENDING_APPROVAL', 'REJECTED', 'CANCELLED', 'COMPLETED'] as $status) {
-            $event = $this->event($status);
-            app(EventReminderService::class)->send($event, ReminderType::H7);
+        $start = CarbonImmutable::parse('2026-08-20 09:00', 'Asia/Jakarta');
+        $event = $this->event($start);
+        $assigned = User::where('role', 'STAFF')->firstOrFail();
+        $removed = User::factory()->create(['role' => 'STAFF']);
+        $event->staff()->attach([$assigned->id, $removed->id]);
+        $event->staff()->detach($removed->id);
+
+        app(EventReminderService::class)->processDue($start->subHour());
+
+        $this->assertEqualsCanonicalizing(
+            [$event->created_by, $assigned->id],
+            AppNotification::where('event_id', $event->id)->pluck('user_id')->all(),
+        );
+        $this->assertDatabaseMissing('notifications', [
+            'event_id' => $event->id,
+            'user_id' => $removed->id,
+            'reminder_type' => ReminderType::H1Hour->value,
+        ]);
+    }
+
+    public function test_only_scheduled_events_receive_automatic_reminders(): void
+    {
+        $start = CarbonImmutable::parse('2026-08-20 09:00', 'Asia/Jakarta');
+        foreach (['DRAFT', 'PENDING_APPROVAL', 'APPROVED', 'REJECTED', 'ONGOING', 'CANCELLED', 'COMPLETED'] as $status) {
+            $this->event($start, $status);
         }
+
+        app(EventReminderService::class)->processDue($start->subDays(3));
 
         $this->assertSame(0, AppNotification::whereNotNull('reminder_type')->count());
         $this->assertSame(0, Reminder::count());
     }
 
-    public function test_simulation_endpoint_creates_four_distinct_contextual_notifications_once(): void
+    public function test_manual_reminder_simulation_endpoint_is_not_available(): void
     {
-        $event = $this->event();
-        $pic = $event->creator;
+        $event = $this->event(CarbonImmutable::parse('2026-08-20 09:00', 'Asia/Jakarta'));
 
-        $this->actingAs($pic)->postJson("/api/events/{$event->id}/reminders")->assertOk();
-        $this->actingAs($pic)->postJson("/api/events/{$event->id}/reminders")->assertOk();
-
-        $notifications = AppNotification::where('event_id', $event->id)->whereNotNull('reminder_type')->get();
-        $this->assertCount(4, $notifications);
-        $this->assertEqualsCanonicalizing(
-            array_column(ReminderType::cases(), 'value'),
-            $notifications->pluck('reminder_type')->all(),
-        );
+        $this->actingAs($event->creator)->postJson("/api/events/{$event->id}/reminders")->assertMethodNotAllowed();
     }
 
-    public function test_removed_staff_member_is_not_notified(): void
-    {
-        $event = $this->event();
-        $staff = User::where('role', 'STAFF')->first();
-        $event->staff()->attach($staff);
-        $event->load('staff');
-        $event->staff()->detach($staff);
-
-        app(EventReminderService::class)->send($event, ReminderType::H1Hour);
-
-        $this->assertDatabaseMissing('notifications', [
-            'event_id' => $event->id,
-            'user_id' => $staff->id,
-            'reminder_type' => ReminderType::H1Hour->value,
-        ]);
-    }
-
-    private function send(ReminderType $type): AppNotification
-    {
-        $event = $this->event();
-        app(EventReminderService::class)->send($event, $type);
-
-        return AppNotification::where('event_id', $event->id)
-            ->where('reminder_type', $type->value)
-            ->where('user_id', $event->created_by)
-            ->firstOrFail();
-    }
-
-    private function event(string $status = 'SCHEDULED'): Event
+    private function event(CarbonImmutable $start, string $status = 'SCHEDULED'): Event
     {
         return Event::create([
             'created_by' => User::where('role', 'PIC')->value('id'),
             'event_name' => 'Training Internal',
             'event_type' => 'Training',
-            'event_date' => '2026-08-20',
-            'start_time' => '09:00',
-            'end_time' => '10:00',
+            'event_date' => $start->toDateString(),
+            'start_time' => $start->format('H:i'),
+            'end_time' => $start->addHour()->format('H:i'),
             'venue_id' => Venue::where('name', 'Training Center')->value('id'),
             'staff_required' => 0,
             'status' => $status,
