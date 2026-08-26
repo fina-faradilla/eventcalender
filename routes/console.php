@@ -27,12 +27,15 @@ Artisan::command('events:sync-status', function (EventLifecycleService $lifecycl
     $this->line('Total perubahan: '.count($changes));
 })->purpose('Synchronize operational event statuses from their Jakarta date and time');
 
-Artisan::command('events:send-reminders', function (EventReminderService $reminders) {
+Artisan::command('events:send-due-reminders', function (EventReminderService $reminders) {
     $result = $reminders->processDue();
     $this->info('Pemeriksaan pengingat acara selesai.');
     $this->line('Acara diperiksa: '.$result['events_checked']);
     $this->line('Pengingat jatuh tempo: '.$result['reminders_due']);
+    foreach ($result['diagnostics'] as $item) {
+        $this->line(sprintf('[%s] event=%s "%s" target=%s eligibility=%s now=%s', $item['decision'], $item['event_id'], $item['event_name'], $item['target_type'].' '.$item['target_time'], $item['eligibility_time'], $item['current_time']));
+    }
 })->purpose('Send event reminders that are due in the current Jakarta time window');
 
 Schedule::command('events:sync-status')->everyMinute()->withoutOverlapping();
-Schedule::command('events:send-reminders')->everyMinute()->withoutOverlapping();
+Schedule::command('events:send-due-reminders')->everyMinute()->withoutOverlapping();

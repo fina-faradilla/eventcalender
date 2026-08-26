@@ -23,19 +23,19 @@ class ReminderMessageBuilder
         return match ($type) {
             ReminderType::H3 => [
                 'title' => 'Pengingat acara H-3',
-                'message' => "Acara {$name} akan dilaksanakan 3 hari lagi pada {$date} pukul {$time} di {$venue}.",
+                'message' => "Acara \"{$name}\" akan dilaksanakan 3 hari lagi, pada {$date} pukul {$time} di {$venue}.",
             ],
             ReminderType::H2 => [
                 'title' => 'Pengingat acara H-2',
-                'message' => "Acara {$name} akan dilaksanakan 2 hari lagi pada {$date} pukul {$time} di {$venue}.",
+                'message' => "Acara \"{$name}\" akan dilaksanakan 2 hari lagi, pada {$date} pukul {$time} di {$venue}.",
             ],
             ReminderType::H1 => [
                 'title' => 'Pengingat acara H-1',
-                'message' => "Acara {$name} akan dilaksanakan besok, {$date} pukul {$time} di {$venue}.",
+                'message' => "Acara \"{$name}\" akan dilaksanakan besok, {$date} pukul {$time} di {$venue}.",
             ],
             ReminderType::H1Hour => [
                 'title' => 'Pengingat acara 1 jam lagi',
-                'message' => "Acara {$name} akan dimulai 1 jam lagi pada pukul {$time} di {$venue}.",
+                'message' => "Acara \"{$name}\" akan dimulai 1 jam lagi, pukul {$time} di {$venue}.",
             ],
         };
     }

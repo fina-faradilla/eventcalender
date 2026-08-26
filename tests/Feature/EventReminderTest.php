@@ -47,17 +47,17 @@ class EventReminderTest extends TestCase
         $this->assertSame(1, $result['reminders_due']);
         $this->assertSame(ReminderType::H2->value, $notification->reminder_type);
         $this->assertSame('Pengingat acara H-2', $notification->title);
-        $this->assertSame('Acara Training Internal akan dilaksanakan 2 hari lagi pada 20 Agu 2026 pukul 09:00 di Training Center.', $notification->message);
+        $this->assertSame('Acara "Training Internal" akan dilaksanakan 2 hari lagi, pada 20 Agu 2026 pukul 09:00 di Training Center.', $notification->message);
     }
 
-    public function test_scheduler_does_not_send_before_or_after_the_due_window(): void
+    public function test_scheduler_allows_grace_delivery_but_rejects_stale_targets(): void
     {
         $start = CarbonImmutable::parse('2026-08-20 09:00', 'Asia/Jakarta');
         $event = $this->event($start);
         $service = app(EventReminderService::class);
 
         $service->processDue($start->subDays(3)->subSecond());
-        $service->processDue($start->subDays(3)->addMinutes(2));
+        $service->processDue($start->subDays(3)->addMinutes(31));
 
         $this->assertDatabaseMissing('notifications', ['event_id' => $event->id, 'reminder_type' => ReminderType::H3->value]);
         $this->assertSame(0, Reminder::count());
@@ -98,7 +98,7 @@ class EventReminderTest extends TestCase
         $this->assertSame(1, Reminder::where([
             'event_id' => $event->id,
             'reminder_type' => ReminderType::H1->value,
-            'channel' => 'EMAIL_MOCK',
+            'channel' => 'EMAIL',
             'recipient' => $event->creator->email,
         ])->count());
     }
@@ -110,6 +110,7 @@ class EventReminderTest extends TestCase
         $assigned = User::where('role', 'STAFF')->firstOrFail();
         $removed = User::factory()->create(['role' => 'STAFF']);
         $event->staff()->attach([$assigned->id, $removed->id]);
+        $event->staff()->updateExistingPivot($assigned->id, ['created_at' => $start->subHours(2), 'updated_at' => $start->subHours(2)]);
         $event->staff()->detach($removed->id);
 
         app(EventReminderService::class)->processDue($start->subHour());
@@ -157,6 +158,8 @@ class EventReminderTest extends TestCase
             'venue_id' => Venue::where('name', 'Training Center')->value('id'),
             'staff_required' => 0,
             'status' => $status,
+            'created_at' => $start->subDays(7),
+            'updated_at' => $start->subDays(7),
         ]);
     }
 }

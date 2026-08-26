@@ -15,9 +15,25 @@ Create the MySQL database `technolife_events`, adjust `.env` credentials, then r
 
 ```powershell
 php artisan migrate --seed
-npm.cmd run dev
-php artisan serve
 ```
+
+## Local development
+
+Use two terminals:
+
+Terminal 1 (Laravel server, scheduler, and queue worker):
+
+```powershell
+composer run dev
+```
+
+Terminal 2 (Vite frontend):
+
+```powershell
+npm.cmd run dev
+```
+
+Then open <http://127.0.0.1:8000>. The Composer command keeps `php artisan schedule:work` and `php artisan queue:work` running automatically, so reminders and queued emails do not require separate terminals. Configure SMTP in `.env` for external email delivery; with `MAIL_MAILER=log`, messages are written to the application log.
 
 For a production frontend bundle:
 

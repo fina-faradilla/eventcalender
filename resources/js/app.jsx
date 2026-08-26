@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useEffect, useMemo, useState } from 'react';
+import React, { Component, createContext, useContext, useEffect, useMemo, useState } from 'react';
 import { createRoot } from 'react-dom/client';
 import axios from 'axios';
 import {
@@ -58,6 +58,29 @@ function ToastProvider({ children }) {
     return <ToastContext.Provider value={show}>{children}<div className="fixed right-4 top-4 z-[80] space-y-2 w-[calc(100%-2rem)] max-w-sm">{items.map(item => <div key={item.id} className={`toast card border-l-4 p-4 shadow-lg ${item.tone === 'error' ? 'border-l-brand' : 'border-l-neutral'}`}><p className="text-sm font-semibold">{item.message}</p></div>)}</div></ToastContext.Provider>;
 }
 
+class AppErrorBoundary extends Component {
+    constructor(props) {
+        super(props);
+        this.state = { failed: false };
+    }
+
+    static getDerivedStateFromError() {
+        return { failed: true };
+    }
+
+    componentDidCatch(error, details) {
+        if (window.__APP_DEBUG__) console.error('React render failed:', error, details);
+    }
+
+    render() {
+        if (this.state.failed) {
+            return <main className="flex min-h-screen items-center justify-center p-6 text-center"><div><h1 className="text-lg font-bold">Aplikasi gagal dimuat.</h1><p className="mt-2 text-sm text-neutral">Muat ulang halaman atau periksa koneksi Anda.</p></div></main>;
+        }
+
+        return this.props.children;
+    }
+}
+
 function Login({ onLogin }) {
     const [form, setForm] = useState({ email: '', password: '' });
     const [errors, setErrors] = useState({}); const [message, setMessage] = useState(''); const [busy, setBusy] = useState(false);
@@ -109,6 +132,7 @@ function Shell({ user, setUser }) {
     const roleKey = String(user?.role ?? '').trim().toUpperCase();
     const [page, setPageState] = useState(roleKey === 'STAFF' ? staffPageFromPath() : 'dashboard'); const [drawer, setDrawer] = useState(false); const [profile, setProfile] = useState(false); const toast = useContext(ToastContext);
     const notificationResource = useResource(roleKey === 'STAFF' ? '/staff/notifications' : '/notifications');
+    useEffect(() => { const timer = window.setInterval(notificationResource.reload, 45000); return () => window.clearInterval(timer); }, []);
     const setPage = next => { setPageState(next); if (roleKey === 'STAFF' && staffRoutes[next]) history.pushState(null, '', staffRoutes[next]); };
     useEffect(() => { const expired = () => { setUser(null); toast('Sesi Anda telah berakhir. Silakan masuk kembali.', 'error'); }; window.addEventListener('session-expired', expired); return () => window.removeEventListener('session-expired', expired); }, []);
     useEffect(() => { if (roleKey !== 'STAFF') return; if (location.pathname === '/') history.replaceState(null, '', staffRoutes.dashboard); if (location.pathname === '/staff/profile') history.replaceState(null, '', staffRoutes.settings); const pop = () => { if (location.pathname === '/staff/profile') history.replaceState(null, '', staffRoutes.settings); setPageState(staffPageFromPath()); }; window.addEventListener('popstate', pop); return () => window.removeEventListener('popstate', pop); }, [roleKey]);
@@ -314,6 +338,7 @@ function AvailabilityPage({ mode }) {
 
 function Notifications({ notificationsChanged }) {
     const { user } = useContext(SessionContext); const resource = useResource(user.role === 'STAFF' ? '/staff/notifications' : '/notifications'); const toast = useContext(ToastContext); const [deletingAll, setDeletingAll] = useState(false); const [busy, setBusy] = useState(false);
+    useEffect(() => { const timer = window.setInterval(resource.reload, 45000); return () => window.clearInterval(timer); }, []);
     const refresh = () => { resource.reload(); notificationsChanged?.(); };
     async function mark(item) { if (item.read_at) return; try { await api('post', `/notifications/${item.id}/read`); refresh(); } catch (error) { toast(error.message, 'error'); } }
     async function markAll() { setBusy(true); try { const result = await api('patch', '/notifications/read-all'); toast(result.message); refresh(); } catch (error) { toast(error.message, 'error'); } finally { setBusy(false); } }
@@ -432,4 +457,10 @@ function App() {
     return <SessionContext.Provider value={{ user, setUser }}>{user ? <Shell user={user} setUser={setUser}/> : <Login onLogin={setUser}/>}</SessionContext.Provider>;
 }
 
-createRoot(document.getElementById('app')).render(<ToastProvider><App/></ToastProvider>);
+try {
+    const root = document.getElementById('app');
+    if (!root) throw new Error('Elemen root aplikasi tidak ditemukan.');
+    createRoot(root).render(<AppErrorBoundary><ToastProvider><App/></ToastProvider></AppErrorBoundary>);
+} catch (error) {
+    window.__showStartupError?.(error);
+}

@@ -8,6 +8,7 @@ use App\Models\Approval;
 use App\Models\Event;
 use App\Models\User;
 use App\Models\Venue;
+use App\Services\AdminNotificationService;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -18,6 +19,8 @@ use Illuminate\Validation\Rule;
 class ApiController extends Controller
 {
     private const TYPES = ['Meeting', 'Training', 'Seminar', 'Workshop', 'Exhibition', 'Gathering', 'Internal Event', 'External Event', 'Other'];
+
+    public function __construct(private readonly AdminNotificationService $adminNotifications) {}
 
     public function login(Request $request)
     {
@@ -150,9 +153,13 @@ class ApiController extends Controller
             $event = Event::create($data);
             $event->staff()->sync($staff);
             $this->notifyAssignments($event, $staff);
+            if ($staff !== []) {
+                $this->adminNotifications->staffAssignmentUpdated($event);
+            }
             AppNotification::create(['user_id' => $event->created_by, 'event_id' => $event->id, 'title' => $submit ? 'Event dikirim' : 'Draft tersimpan', 'message' => $submit ? "$event->event_name telah dikirim untuk persetujuan." : "$event->event_name tersimpan sebagai draft."]);
             if ($submit) {
                 $this->notifyApprovers($event, false);
+                $this->adminNotifications->eventSubmitted($event, $request->user());
             }
 
             return response()->json($event->load(['venue', 'staff', 'creator']), 201);
@@ -170,6 +177,7 @@ class ApiController extends Controller
         return DB::transaction(function () use ($request, $data, $event, $submit, $wasRejected) {
             $this->conflicts($data, $event->id);
             $staff = $data['staff_ids'] ?? [];
+            $previousStaff = $event->staff()->pluck('users.id')->map(fn ($id) => (int) $id)->sort()->values()->all();
             unset($data['staff_ids']);
             if ($submit) {
                 $data['status'] = EventStatus::Pending->value;
@@ -177,12 +185,17 @@ class ApiController extends Controller
             $event->update($data);
             $event->staff()->sync($staff);
             $this->notifyAssignments($event, $staff);
+            $currentStaff = collect($staff)->map(fn ($id) => (int) $id)->unique()->sort()->values()->all();
+            if ($previousStaff !== $currentStaff) {
+                $this->adminNotifications->staffAssignmentUpdated($event);
+            }
             if ($submit && $wasRejected) {
                 Approval::create(['event_id' => $event->id, 'approver_id' => $request->user()->id, 'status' => 'RESUBMITTED']);
             }
             if ($submit) {
                 $this->notifyApprovers($event, $wasRejected);
                 AppNotification::create(['user_id' => $event->created_by, 'event_id' => $event->id, 'title' => $wasRejected ? 'Event dikirim ulang' : 'Event dikirim', 'message' => "$event->event_name menunggu persetujuan."]);
+                $this->adminNotifications->eventSubmitted($event, $request->user(), $wasRejected);
             }
 
             return $event->load(['venue', 'staff', 'creator', 'approvals.approver']);
@@ -227,6 +240,7 @@ class ApiController extends Controller
             $event->update(['status' => $approved ? EventStatus::Scheduled->value : EventStatus::Rejected->value]);
             Approval::create(['event_id' => $event->id, 'approver_id' => $request->user()->id, 'status' => $approved ? 'APPROVED' : 'REJECTED', 'rejection_reason' => $data['rejection_reason'] ?? null, 'approved_at' => $approved ? now() : null]);
             AppNotification::create(['user_id' => $event->created_by, 'event_id' => $event->id, 'title' => $approved ? 'Event disetujui' : 'Event ditolak', 'message' => $approved ? "$event->event_name telah masuk jadwal." : "{$event->event_name} ditolak: {$data['rejection_reason']}"]);
+            $this->adminNotifications->eventDecided($event, $request->user(), $approved);
         });
 
         return $event->fresh()->load(['venue', 'staff', 'creator', 'approvals.approver']);
