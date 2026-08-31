@@ -88,7 +88,7 @@ class ApiController extends Controller
         $query = Event::with(['creator:id,name,email', 'venue', 'staff:id,name,email,role', 'approvals.approver:id,name'])->latest('event_date');
         $this->scopeVisibleEvents($query, $request->user());
         if ($request->boolean('calendar')) {
-            $query->whereIn('status', EventStatus::confirmed());
+            $query->whereIn('status', [...EventStatus::confirmed(), EventStatus::Cancelled->value]);
         }
         foreach (['status', 'venue_id', 'event_type'] as $field) {
             if ($request->filled($field)) {
@@ -317,7 +317,7 @@ class ApiController extends Controller
 
     public function staffCalendar(Request $request)
     {
-        return $this->staffEventQuery($request->user())->with(['venue'])->whereIn('status', EventStatus::confirmed())->orderBy('event_date')->get();
+        return $this->staffEventQuery($request->user())->with(['venue'])->whereIn('status', [...EventStatus::confirmed(), EventStatus::Cancelled->value])->orderBy('event_date')->get();
     }
 
     private function staffEventQuery(User $user): Builder
