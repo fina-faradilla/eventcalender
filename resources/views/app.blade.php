@@ -14,8 +14,22 @@
             <div><strong>Memuat aplikasi&hellip;</strong><p style="margin-top:8px;font-size:14px">Mohon tunggu sebentar.</p></div>
         </main>
     </div>
+    @php
+        $authUser = auth()->user() ? [
+            'id' => auth()->user()->id,
+            'name' => auth()->user()->name,
+            'email' => auth()->user()->email,
+            'role' => auth()->user()->role,
+            'phone' => auth()->user()->phone,
+            'is_active' => auth()->user()->is_active,
+            'created_at' => (string) auth()->user()->created_at,
+        ] : null;
+        $sessionError = $errors->first('email') ?: ($errors->first() ?: session('error'));
+    @endphp
     <script>
         window.__APP_DEBUG__ = @json((bool) config('app.debug'));
+        window.__AUTH_USER__ = @json($authUser);
+        window.__SESSION_ERROR__ = @json($sessionError);
         window.__showStartupError = function (error) {
             if (window.__APP_DEBUG__) console.error('Application startup failed:', error);
             var root = document.getElementById('app');

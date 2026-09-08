@@ -83,7 +83,9 @@ class AppErrorBoundary extends Component {
 
 function Login({ onLogin }) {
     const [form, setForm] = useState({ email: '', password: '' });
-    const [errors, setErrors] = useState({}); const [message, setMessage] = useState(''); const [busy, setBusy] = useState(false);
+    const [errors, setErrors] = useState({});
+    const [message, setMessage] = useState(window.__SESSION_ERROR__ || '');
+    const [busy, setBusy] = useState(false);
     async function submit(event) {
         event.preventDefault(); setMessage(''); setErrors({});
         const next = {}; if (!form.email) next.email = 'Email wajib diisi.'; if (!form.password) next.password = 'Kata sandi wajib diisi.';
@@ -105,6 +107,16 @@ function Login({ onLogin }) {
             {message && <Alert tone="error">{message}</Alert>}
             <div className="space-y-5"><Field label="Email" error={errors.email}><input autoComplete="username" autoFocus className="field" type="email" value={form.email} aria-invalid={!!errors.email} onChange={e => setForm({ ...form, email: e.target.value })} placeholder="nama@perusahaan.com" /></Field><Field label="Kata sandi" error={errors.password}><input autoComplete="current-password" className="field" type="password" value={form.password} aria-invalid={!!errors.password} onChange={e => setForm({ ...form, password: e.target.value })} placeholder="Masukkan kata sandi" /></Field></div>
             <button disabled={busy} className="btn btn-primary mt-7 w-full">{busy ? <><Spinner/> Memeriksa akun…</> : 'Masuk'}</button>
+            <button
+    type="button"
+    onClick={() => {
+        window.location.href = '/auth/keycloak/redirect';
+    }}
+    className="btn w-full flex items-center justify-center gap-2 border border-gray-300 bg-white hover:bg-gray-50 text-gray-700 font-medium py-2.5 px-4 rounded-lg shadow-sm transition-all text-sm cursor-pointer"
+>
+    <ShieldCheck className="w-4 h-4 text-[#d50932]" />
+    <span>Technolife SSO (Keycloak)</span>
+</button>
             <p className="mt-8 text-center text-xs text-neutral">Akses terbatas untuk personel Technolife yang berwenang.</p>
         </form></section>
     </main>;
@@ -452,8 +464,12 @@ function TableSkeleton() { return <div className="space-y-1 p-4">{[...Array(6)].
 function ListSkeleton() { return <div className="card divide-y divide-line">{[...Array(5)].map((_, index) => <div className="p-5" key={index}><div className="skeleton h-4 w-1/3"/><div className="skeleton mt-3 h-4 w-2/3"/></div>)}</div>; }
 
 function App() {
-    const [user, setUser] = useState(undefined);
-    useEffect(() => { api('get', '/me').then(setUser).catch(() => setUser(null)); }, []);
+    const [user, setUser] = useState(window.__AUTH_USER__ !== undefined ? window.__AUTH_USER__ : undefined);
+    useEffect(() => {
+        if (window.__AUTH_USER__ === undefined) {
+            api('get', '/me').then(setUser).catch(() => setUser(null));
+        }
+    }, []);
     if (user === undefined) return <div className="flex min-h-screen items-center justify-center"><Spinner/><span className="ml-3 text-sm font-semibold text-neutral">Memuat aplikasi…</span></div>;
     return <SessionContext.Provider value={{ user, setUser }}>{user ? <Shell user={user} setUser={setUser}/> : <Login onLogin={setUser}/>}</SessionContext.Provider>;
 }

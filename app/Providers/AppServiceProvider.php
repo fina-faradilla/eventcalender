@@ -2,25 +2,22 @@
 
 namespace App\Providers;
 
-use App\Models\Event;
-use App\Observers\EventObserver;
+use Illuminate\Support\Facades\Event; // <-- Pastikan yang ini
 use Illuminate\Support\ServiceProvider;
+use SocialiteProviders\Manager\SocialiteWasCalled;
+use SocialiteProviders\Keycloak\Provider;
 
 class AppServiceProvider extends ServiceProvider
 {
-    /**
-     * Register any application services.
-     */
     public function register(): void
     {
         //
     }
 
-    /**
-     * Bootstrap any application services.
-     */
     public function boot(): void
     {
-        Event::observe(EventObserver::class);
+        Event::listen(function (SocialiteWasCalled $event) {
+            $event->extendSocialite('keycloak', Provider::class);
+        });
     }
 }

@@ -8,7 +8,8 @@
     "require": {
         "php": "^8.3",
         "laravel/framework": "^13.0",
-        "laravel/tinker": "^3.0"
+        "laravel/tinker": "^3.0",
+        "socialiteproviders/keycloak": "^5.3"
     },
     "require-dev": {
         "fakerphp/faker": "^1.23",
@@ -41,7 +42,7 @@
         ],
         "dev": [
             "Composer\\Config::disableProcessTimeout",
-            "npx --no-install concurrently -c \"#93c5fd,#c4b5fd,#fb7185\" \"php artisan serve\" \"php artisan schedule:work\" \"php artisan queue:work --tries=1 --timeout=0\" --names=server,scheduler,queue --kill-others"
+            "npx --no-install concurrently -c \"#93c5fd,#c4b5fd,#fb7185\" \"php artisan serve --port=8005\" \"php artisan schedule:work\" \"php artisan queue:work --tries=1 --timeout=0\" --names=server,scheduler,queue --kill-others"
         ],
         "test": [
             "@php artisan config:clear --ansi",
