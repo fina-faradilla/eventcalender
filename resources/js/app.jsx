@@ -104,15 +104,15 @@ function Shell({ user, setUser }) {
     const branding = brandingFor(roleKey);
     return <div className="min-h-screen lg:flex">
         <aside className={`app-sidebar fixed inset-y-0 left-0 z-40 flex h-screen w-[260px] shrink-0 flex-col px-4 py-8 transition-transform duration-200 ease-out lg:sticky lg:top-0 lg:translate-x-0 ${drawer ? 'translate-x-0' : '-translate-x-full'}`}>
-            <div className="flex min-h-14 items-center justify-between"><div className="brand-lockup"><span className="brand-mark" aria-hidden="true"><CalendarDays size={21}/></span><div><b className="block font-bold text-[#1f2937]">Technolife</b><span className="text-[11px] font-semibold uppercase tracking-wide text-[#6b7280]">{branding.subtitle}</span></div></div><button aria-label="Tutup menu" className="text-neutral lg:hidden" onClick={() => setDrawer(false)}><X/></button></div>
+            <div className="flex min-h-14 items-center justify-between"><div className="brand-lockup"><span className="brand-mark" aria-hidden="true"><CalendarDays size={21}/></span><div><b className="block font-bold text-ink">Technolife</b><span className="text-[11px] font-semibold uppercase tracking-wide text-neutral">{branding.subtitle}</span></div></div><button aria-label="Tutup menu" className="text-neutral lg:hidden" onClick={() => setDrawer(false)}><X/></button></div>
             <nav className="mt-8 flex-1 space-y-1 overflow-y-auto" aria-label="Navigasi utama">{(navigation[roleKey] || []).map(([id, label, Icon]) => <button key={id} onClick={() => { setPage(id); setDrawer(false); }} className={`nav-item ${page === id ? 'is-active' : ''}`}><Icon size={19}/><span>{label}</span></button>)}</nav>
-            <div className="border-t border-white/10 pt-4"><button onClick={() => { setPage(roleKey === 'STAFF' ? 'settings' : 'profile'); setDrawer(false); }} className={`nav-item ${page === (roleKey === 'STAFF' ? 'settings' : 'profile') ? 'is-active' : ''}`}><Settings size={18}/>Pengaturan</button><button onClick={logout} className="nav-item"><LogOut size={18}/>Keluar</button></div>
+            <div className="border-t border-line pt-4"><button onClick={() => { setPage(roleKey === 'STAFF' ? 'settings' : 'profile'); setDrawer(false); }} className={`nav-item ${page === (roleKey === 'STAFF' ? 'settings' : 'profile') ? 'is-active' : ''}`}><Settings size={18}/>Pengaturan</button><button onClick={logout} className="nav-item"><LogOut size={18}/>Keluar</button></div>
         </aside>
         {drawer && <button aria-label="Tutup menu" className="fixed inset-0 z-30 bg-black/55 lg:hidden" onClick={() => setDrawer(false)}/>} 
-        <section className="min-w-0 flex-1"><header className="app-header sticky top-0 z-20 flex h-16 items-center justify-between px-4 lg:px-8"><div className="flex min-w-0 items-center gap-3"><button aria-label="Buka menu" className="mobile-menu-toggle icon-button" onClick={() => setDrawer(true)}><Menu/></button><div className="min-w-0"><p className="truncate text-[11px] font-bold uppercase tracking-[.12em] text-brand">{branding.subtitle}</p><h2 className="truncate text-sm font-bold sm:text-base">{current}</h2></div></div><div className="flex items-center gap-2 sm:gap-3"><button aria-label="Notifikasi" className="icon-button relative" onClick={() => setPage('notifications')}><Bell size={20}/>{notificationResource.data?.unread_count > 0 && <span className="absolute -right-1 -top-1 flex min-h-4 min-w-4 items-center justify-center rounded-full bg-brand px-1 text-[9px] font-bold text-white">{notificationResource.data.unread_count}</span>}</button><span className="mx-1 hidden h-7 w-px bg-line sm:block"/><button onClick={() => roleKey === 'STAFF' ? setPage('settings') : setProfile(true)} className="flex items-center gap-3 text-left"><span className="hidden sm:block"><b className="block text-right text-sm">{user.name}</b><span className="block text-right text-xs text-neutral">{ROLE[roleKey] || 'Pengguna'}</span></span><Avatar name={user.name}/></button></div></header>
+        <section className="min-w-0 flex-1"><header className="app-header sticky top-0 z-20 flex h-16 items-center justify-between px-4 lg:px-8"><div className="flex min-w-0 items-center gap-3"><button aria-label="Buka menu" className="mobile-menu-toggle icon-button" onClick={() => setDrawer(true)}><Menu/></button><div className="min-w-0"><p className="truncate text-[11px] font-bold uppercase tracking-[.12em] text-brand">{branding.subtitle}</p><h2 className="truncate text-sm font-bold text-ink sm:text-base">{current}</h2></div></div><div className="flex items-center gap-2 sm:gap-3"><button aria-label="Notifikasi" className="icon-button relative" onClick={() => setPage('notifications')}><Bell size={20}/>{notificationResource.data?.unread_count > 0 && <span className="absolute -right-1 -top-1 flex min-h-4 min-w-4 items-center justify-center rounded-full bg-brand px-1 text-[9px] font-bold text-white">{notificationResource.data.unread_count}</span>}</button><span className="mx-1 hidden h-7 w-px bg-line sm:block"/><button onClick={() => roleKey === 'STAFF' ? setPage('settings') : setProfile(true)} className="flex items-center gap-3 text-left"><span className="hidden sm:block"><b className="block text-right text-sm text-ink">{user.name}</b><span className="block text-right text-xs text-neutral">{ROLE[roleKey] || 'Pengguna'}</span></span><Avatar name={user.name}/></button></div></header>
             <main className="mx-auto max-w-[1440px] p-4 sm:p-6 md:p-8"><Page page={page} role={roleKey} navigate={setPage} notificationsChanged={notificationResource.reload}/></main>
         </section>
-        {profile && <Modal title="Profil pengguna" close={() => setProfile(false)} size="sm"><div className="flex items-center gap-4 border-b border-line pb-5"><Avatar name={user.name} large/><div><h3 className="text-lg font-black">{user.name}</h3><span className="badge">{ROLE[roleKey] || 'Pengguna'}</span></div></div><dl className="mt-5 space-y-4 text-sm"><Info label="Email" value={user.email}/><Info label="Nomor telepon" value={user.phone || 'Belum diatur'}/><Info label="Status akun" value={user.is_active ? 'Aktif' : 'Nonaktif'}/></dl><div className="mt-6 flex justify-end"><button className="btn btn-danger" onClick={logout}><LogOut size={17}/>Keluar dari sistem</button></div></Modal>}
+        {profile && <Modal title="Profil pengguna" close={() => setProfile(false)} size="sm"><div className="flex items-center gap-4 border-b border-line pb-5"><Avatar name={user.name} large/><div><h3 className="text-lg font-bold text-ink">{user.name}</h3><span className="badge">{ROLE[roleKey] || 'Pengguna'}</span></div></div><dl className="mt-5 space-y-4 text-sm"><Info label="Email" value={user.email}/><Info label="Nomor telepon" value={user.phone || 'Belum diatur'}/><Info label="Status akun" value={user.is_active ? 'Aktif' : 'Nonaktif'}/></dl><div className="mt-6 flex justify-end"><button className="btn btn-danger" onClick={logout}><LogOut size={17}/>Keluar dari sistem</button></div></Modal>}
     </div>;
 }
 
@@ -145,22 +145,53 @@ function Dashboard({ role, navigate }) {
     const activeConfiguration = configurations.find(item => item.key === dashboardFilter) || configurations[0];
     const events = sortDashboardEvents(filterDashboardEvents(dashboardEvents, activeConfiguration.key), activeConfiguration.key).slice(0, 5);
     if (detailId) return <EventDetail fullPage id={detailId} role={role} close={() => setDetailId(null)} edit={() => { setDetailId(null); navigate('events'); }} changed={() => { eventResource.reload(); resource.reload(); }} backLabel={role === 'APPROVER' ? 'Kembali ke Dasbor Persetujuan' : 'Kembali ke Dasbor'}/>;
-    const title = role === 'APPROVER' ? 'Ringkasan Persetujuan' : role === 'PIC' ? 'Ringkasan Acara' : 'Ringkasan Dasbor';
-    const subtitle = role === 'APPROVER' ? 'Tinjau dan kelola pengajuan yang menunggu keputusan.' : role === 'PIC' ? 'Pantau perkembangan acara Anda hari ini.' : 'Ringkasan kinerja sistem dan metrik acara berdasarkan data terkini.';
+
+    const roleHero = {
+        ADMIN: {
+            eyebrow: 'Ruang Kerja Admin',
+            titlePrefix: 'Selamat Datang di Konsol Admin,',
+            titleHighlight: 'Pusat Kendali Acara.',
+            description: 'Pantau kinerja operasional, kelola jadwal fasilitas, dan koordinasikan seluruh agenda acara perusahaan secara menyeluruh dan terintegrasi.',
+            actionLabel: 'Kelola Semua Acara',
+        },
+        APPROVER: {
+            eyebrow: 'Ruang Kerja Penyetuju',
+            titlePrefix: 'Selamat Datang Penyetuju,',
+            titleHighlight: 'Validasi & Persetujuan Acara.',
+            description: 'Evaluasi kesiapan fasilitas, kebutuhan staf, dan berikan keputusan persetujuan untuk memastikan kelancaran setiap agenda operasional.',
+            actionLabel: 'Buka Antrean Persetujuan',
+        },
+        PIC: {
+            eyebrow: 'Ruang Kerja PIC Acara',
+            titlePrefix: 'Selamat Datang PIC Acara,',
+            titleHighlight: 'Rencanakan & Kelola Agenda.',
+            description: 'Susun jadwal kegiatan, periksa ketersediaan lokasi dan staf, serta pantau status pengajuan acara Anda secara real-time.',
+            actionLabel: 'Lihat Acara Saya',
+        },
+    }[role] || {
+        eyebrow: 'Ruang Kerja Technolife',
+        titlePrefix: 'Selamat Datang Kembali,',
+        titleHighlight: 'Kalender & Operasional Acara.',
+        description: 'Kelola agenda kegiatan, fasilitas lokasi, dan operasional acara terpadu dari satu tempat.',
+        actionLabel: 'Lihat Aktivitas',
+    };
+
     const today = new Intl.DateTimeFormat('id-ID', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' }).format(new Date());
     return <>
-        <DashboardHero eyebrow="Ruang Kerja Technolife" description={`${subtitle} Kelola agenda dan operasional acara dari satu tempat.`} actionLabel={role === 'APPROVER' ? 'Buka Antrean Persetujuan' : role === 'PIC' ? 'Lihat Acara Saya' : 'Lihat Aktivitas'} onAction={() => navigate(actionPage)} date={today}/>
+        <DashboardHero
+            eyebrow={roleHero.eyebrow}
+            titlePrefix={roleHero.titlePrefix}
+            titleHighlight={roleHero.titleHighlight}
+            description={roleHero.description}
+            actionLabel={roleHero.actionLabel}
+            onAction={() => navigate(actionPage)}
+            date={today}
+        />
         <section className={role === 'PIC' ? 'pic-stats-grid' : 'stats-grid'}>{configurations.map(item => <StatCard key={item.key} label={item.label} count={item.count} active={dashboardFilter === item.key} onClick={() => setDashboardFilter(item.key)}/>)}</section>
         <section className="mt-6"><div className="card overflow-hidden"><div className="section-heading"><div><h2>{activeConfiguration.title}</h2><p>{activeConfiguration.description}</p></div><button className="text-button" onClick={() => navigate(actionPage)}>Lihat semua <ChevronRight size={16}/></button></div>{events.length ? <EventTable rows={events} open={setDetailId}/> : <EmptyState icon={ClipboardCheck} title={activeConfiguration.empty} description="Pilih kategori lain atau buka daftar lengkap untuk melihat acara lainnya."/>}</div></section>
         {role === 'ADMIN' && <OperationalAnalytics events={dashboardEvents}/>} 
     </>;
 }
-
-
-
-
-
-
 
 function useResource(url, dependencies = []) {
     const [state, setState] = useState({ loading: true, data: null, error: null }); const [version, setVersion] = useState(0);
@@ -168,11 +199,40 @@ function useResource(url, dependencies = []) {
     return { ...state, reload: () => setVersion(value => value + 1) };
 }
 
-function DashboardHero({ eyebrow, description, actionLabel, onAction, date }) { return <section className="dashboard-hero"><div className="self-center"><p className="hero-eyebrow">{eyebrow}</p><h1 className="mt-3 text-2xl font-bold leading-tight sm:text-3xl">Selamat datang kembali</h1><p className="mt-3 max-w-2xl text-sm leading-6 text-white/65">{description}</p><button className="btn btn-primary mt-6" onClick={onAction}>{actionLabel}<ChevronRight size={17}/></button></div><div className="hero-date"><CalendarDays className="text-brand" size={23}/><p className="mt-4 text-xs uppercase tracking-wider text-white/45">Hari ini</p><p className="mt-1 font-semibold capitalize">{date}</p></div></section>; }
+function DashboardHero({ eyebrow, titlePrefix = 'Selamat Datang Kembali,', titleHighlight = 'Ruang Kerja Acara.', description, actionLabel, onAction, date }) {
+    return <section className="dashboard-hero">
+        <div className="self-center">
+            <div className="hero-badge"><span className="hero-badge-dot"/>{eyebrow}</div>
+            <h1 className="mt-3.5 text-2xl font-bold tracking-tight text-ink sm:text-3xl md:text-[32px] leading-tight">
+                <span className="block text-ink">{titlePrefix}</span>
+                <span className="block text-brand">{titleHighlight}</span>
+            </h1>
+            <p className="mt-3 max-w-2xl text-sm leading-relaxed text-neutral sm:text-base">{description}</p>
+            <div className="mt-6 flex flex-wrap items-center gap-3">
+                <button className="btn btn-primary" onClick={onAction}>
+                    {actionLabel}
+                    <ChevronRight size={17}/>
+                </button>
+            </div>
+        </div>
+        <div className="hero-date">
+            <div className="flex items-center gap-2.5 text-brand">
+                <CalendarDays size={20}/>
+                <span className="text-xs font-bold uppercase tracking-wider text-neutral">Jadwal Hari Ini</span>
+            </div>
+            <p className="mt-3 text-base font-bold capitalize text-ink sm:text-lg">{date}</p>
+            <div className="mt-3.5 flex items-center gap-2 text-xs font-medium text-neutral">
+                <span className="h-2 w-2 rounded-full bg-emerald-500"/>
+                <span>Sistem Terhubung & Terintegrasi</span>
+            </div>
+        </div>
+    </section>;
+}
+
 function ListToolbar({ children, single = false }) { return <div className={`list-toolbar ${single ? 'is-single' : ''}`}>{children}</div>; }
 function SearchField({ className = '', compact = false, ...props }) { return <div className={`search-field ${className}`}><Search className="search-field-icon" size={compact ? 15 : 17}/><input className={`field search-field-input ${compact ? 'is-compact' : ''}`} type="search" {...props}/></div>; }
-function PageHeader({ title, subtitle, action }) { return <header className="mb-8 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between"><div><h1 className="text-2xl font-bold tracking-[-.02em] sm:text-[32px] sm:leading-10">{uiText(title)}</h1><p className="mt-1 text-base leading-6 text-neutral">{uiText(subtitle)}</p></div>{action}</header>; }
-function StatCard({ label, count, accent, active = false, onClick }) { const content = <div className="flex h-full items-start justify-between gap-4"><div><p className="text-[11px] font-bold uppercase tracking-[.06em] text-neutral">{label}</p><p className="mt-3 text-[32px] font-bold leading-10 tracking-tight">{count ?? 0}</p><p className="mt-2 text-xs text-neutral">Berdasarkan data terkini</p></div><span className={`stat-card-icon flex h-11 w-11 items-center justify-center rounded-xl ${accent || active ? 'bg-brand text-white' : 'bg-surface-container-low text-neutral'}`}><CalendarCheck size={20}/></span></div>; return onClick ? <button type="button" aria-pressed={active} onClick={onClick} className={`stat-card card is-interactive min-h-36 w-full p-6 text-left ${active ? 'is-active' : ''}`}>{content}</button> : <article className={`stat-card card min-h-36 p-6 ${accent ? 'is-accent' : ''}`}>{content}</article>; }
+function PageHeader({ title, subtitle, action }) { return <header className="mb-8 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between"><div><h1 className="text-2xl font-bold tracking-[-.02em] text-ink sm:text-[30px] sm:leading-10">{uiText(title)}</h1><p className="mt-1 text-sm leading-6 text-neutral sm:text-base">{uiText(subtitle)}</p></div>{action}</header>; }
+function StatCard({ label, count, accent, active = false, onClick }) { const content = <div className="flex h-full items-start justify-between gap-4"><div><p className="text-[11px] font-bold uppercase tracking-[.06em] text-neutral">{label}</p><p className="mt-3 text-[32px] font-bold leading-10 tracking-tight text-ink">{count ?? 0}</p><p className="mt-2 text-xs text-neutral">Berdasarkan data terkini</p></div><span className={`stat-card-icon flex h-11 w-11 items-center justify-center rounded-xl ${accent || active ? 'bg-brand text-white shadow-sm' : 'bg-surface-container-low text-neutral'}`}><CalendarCheck size={20}/></span></div>; return onClick ? <button type="button" aria-pressed={active} onClick={onClick} className={`stat-card card is-interactive min-h-36 w-full p-6 text-left ${active ? 'is-active' : ''}`}>{content}</button> : <article className={`stat-card card min-h-36 p-6 ${accent ? 'is-accent' : ''}`}>{content}</article>; }
 
 function dashboardMetricConfigurations(role, data) {
     const configurations = {

@@ -16,6 +16,8 @@ class AppServiceProvider extends ServiceProvider
 
     public function boot(): void
     {
+        \App\Models\Event::observe(\App\Observers\EventObserver::class);
+
         Event::listen(function (SocialiteWasCalled $event) {
             $event->extendSocialite('keycloak', Provider::class);
         });

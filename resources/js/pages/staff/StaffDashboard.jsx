@@ -23,7 +23,7 @@ function StaffDashboard({ navigate }) {
     const assignments = assignmentsResource.data?.data || schedule;
     const filteredAssignments = sortDashboardEvents(filterDashboardEvents(assignments, dashboardFilter), dashboardFilter).slice(0, 5);
     const today = new Intl.DateTimeFormat('id-ID', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' }).format(new Date());
-    return <><DashboardHero eyebrow="Ruang Kerja Staf" description="Pantau penugasan, jadwal, dan aktivitas acara Anda dari satu tempat." actionLabel="Lihat Penugasan" onAction={() => navigate('assignments')} date={today}/>
+    return <><DashboardHero eyebrow="Ruang Kerja Staf" titlePrefix="Selamat Datang Staf Operasional," titleHighlight="Jadwal & Agenda Penugasan." description="Pantau penugasan, jadwal kegiatan, dan pembaruan operasional acara Anda dari satu tempat secara terpadu." actionLabel="Lihat Penugasan" onAction={() => navigate('assignments')} date={today}/>
         <section className="stats-grid">
             {configurations.map(item => <StatCard key={item.key} label={item.label} count={item.count} active={dashboardFilter === item.key} onClick={() => setDashboardFilter(item.key)}/>)}
         </section>
