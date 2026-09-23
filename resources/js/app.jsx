@@ -33,6 +33,7 @@ const ToastContext = createContext(() => {});
 const STATUS = {
     DRAFT: 'Draf', PENDING_APPROVAL: 'Menunggu Persetujuan', APPROVED: 'Disetujui',
     REJECTED: 'Ditolak', SCHEDULED: 'Terjadwal', ONGOING: 'Sedang Berlangsung',
+    REJECTED: 'Perlu Revisi', SCHEDULED: 'Terjadwal', ONGOING: 'Sedang Berlangsung',
     COMPLETED: 'Selesai', CANCELLED: 'Dibatalkan',
 };
 const ROLE = { PIC: 'PIC', APPROVER: 'Penyetuju', ADMIN: 'Admin', STAFF: 'Staf' };
@@ -261,6 +262,7 @@ function dashboardMetricConfigurations(role, data) {
             ['upcoming', 'Acara Mendatang', data.upcoming, 'Acara Mendatang', 'Acara terjadwal yang akan datang.', 'Belum ada acara mendatang.'],
             ['completed', 'Acara Selesai', data.completed, 'Acara Selesai', 'Riwayat acara yang telah selesai.', 'Belum ada acara selesai.'],
             ['rejected', 'Ditolak', data.rejected, 'Pengajuan Ditolak', 'Riwayat pengajuan yang ditolak.', 'Tidak ada pengajuan ditolak.'],
+            ['rejected', 'Perlu Revisi', data.rejected, 'Pengajuan Perlu Revisi', 'Riwayat pengajuan yang diminta revisi.', 'Tidak ada pengajuan yang diminta revisi.'],
         ],
         ADMIN: [
             ['all', 'Total Acara', data.total, 'Semua Acara', 'Aktivitas acara terbaru di seluruh sistem.', 'Belum ada acara.'],

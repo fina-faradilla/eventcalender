@@ -122,6 +122,7 @@ class ApiController extends Controller
         $this->scopeVisibleEvents($query, $request->user());
         if ($request->boolean('calendar')) {
             $query->whereIn('status', [...EventStatus::confirmed(), EventStatus::Cancelled->value]);
+            $query->whereIn('status', EventStatus::confirmed());
         }
         foreach (['status', 'venue_id', 'event_type'] as $field) {
             if ($request->filled($field)) {
@@ -273,6 +274,7 @@ class ApiController extends Controller
             $event->update(['status' => $approved ? EventStatus::Scheduled->value : EventStatus::Rejected->value]);
             Approval::create(['event_id' => $event->id, 'approver_id' => $request->user()->id, 'status' => $approved ? 'APPROVED' : 'REJECTED', 'rejection_reason' => $data['rejection_reason'] ?? null, 'approved_at' => $approved ? now() : null]);
             AppNotification::create(['user_id' => $event->created_by, 'event_id' => $event->id, 'title' => $approved ? 'Event disetujui' : 'Event ditolak', 'message' => $approved ? "$event->event_name telah masuk jadwal." : "{$event->event_name} ditolak: {$data['rejection_reason']}"]);
+            AppNotification::create(['user_id' => $event->created_by, 'event_id' => $event->id, 'title' => $approved ? 'Event disetujui' : 'Permintaan revisi event', 'message' => $approved ? "$event->event_name telah masuk jadwal." : "{$event->event_name} perlu direvisi: {$data['rejection_reason']}"]);
             $this->adminNotifications->eventDecided($event, $request->user(), $approved);
         });
 
@@ -351,6 +353,7 @@ class ApiController extends Controller
     public function staffCalendar(Request $request)
     {
         return $this->staffEventQuery($request->user())->with(['venue'])->whereIn('status', [...EventStatus::confirmed(), EventStatus::Cancelled->value])->orderBy('event_date')->get();
+        return $this->staffEventQuery($request->user())->with(['venue'])->whereIn('status', EventStatus::confirmed())->orderBy('event_date')->get();
     }
 
     private function staffEventQuery(User $user): Builder

@@ -23,8 +23,10 @@ class AdminNotificationService
     public function eventDecided(Event $event, User $approver, bool $approved): void
     {
         $action = $approved ? 'telah disetujui' : 'ditolak';
+        $action = $approved ? 'telah disetujui' : 'diminta untuk direvisi';
         $this->send($event, [
             'title' => $approved ? 'Acara disetujui' : 'Acara ditolak',
+            'title' => $approved ? 'Acara disetujui' : 'Permintaan revisi acara',
             'message' => "Acara \"{$event->event_name}\" {$action} oleh {$approver->name}.",
         ]);
     }
