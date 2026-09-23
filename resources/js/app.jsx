@@ -97,11 +97,24 @@ function Shell({ user, setUser }) {
     useEffect(() => { const timer = window.setInterval(notificationResource.reload, 45000); return () => window.clearInterval(timer); }, []);
     const setPage = next => { setPageState(next); if (roleKey === 'STAFF' && staffRoutes[next]) history.pushState(null, '', staffRoutes[next]); };
     useEffect(() => { const expired = () => { setUser(null); toast('Sesi Anda telah berakhir. Silakan masuk kembali.', 'error'); }; window.addEventListener('session-expired', expired); return () => window.removeEventListener('session-expired', expired); }, []);
-    useEffect(() => { if (roleKey !== 'STAFF') return; if (location.pathname === '/') history.replaceState(null, '', staffRoutes.dashboard); if (location.pathname === '/staff/profile') history.replaceState(null, '', staffRoutes.settings); const pop = () => { if (location.pathname === '/staff/profile') history.replaceState(null, '', staffRoutes.settings); setPageState(staffPageFromPath()); }; window.addEventListener('popstate', pop); return () => window.removeEventListener('popstate', pop); }, [roleKey]);
     useEffect(() => { const closeOnEscape = event => event.key === 'Escape' && setDrawer(false); window.addEventListener('keydown', closeOnEscape); document.body.style.overflow = drawer ? 'hidden' : ''; return () => { window.removeEventListener('keydown', closeOnEscape); document.body.style.overflow = ''; }; }, [drawer]);
-    async function logout() { try { await api('post', '/logout'); } finally { setUser(null); history.replaceState(null, '', '/'); } }
+    async function logout() {
+        try {
+            const res = await api('post', '/logout');
+            if (res?.keycloak_logout_url) {
+                window.location.href = res.keycloak_logout_url;
+                return;
+            }
+        } catch (e) {
+            // ignore network error on logout
+        } finally {
+            setUser(null);
+            history.replaceState(null, '', '/');
+        }
+    }
     const current = ['profile', 'settings'].includes(page) ? 'Pengaturan' : navigation[roleKey]?.find(item => item[0] === page)?.[1] || 'Dasbor';
     const branding = brandingFor(roleKey);
+
     return <div className="min-h-screen lg:flex">
         <aside className={`app-sidebar fixed inset-y-0 left-0 z-40 flex h-screen w-[260px] shrink-0 flex-col px-4 py-8 transition-transform duration-200 ease-out lg:sticky lg:top-0 lg:translate-x-0 ${drawer ? 'translate-x-0' : '-translate-x-full'}`}>
             <div className="flex min-h-14 items-center justify-between"><div className="brand-lockup"><span className="brand-mark" aria-hidden="true"><CalendarDays size={21}/></span><div><b className="block font-bold text-ink">Technolife</b><span className="text-[11px] font-semibold uppercase tracking-wide text-neutral">{branding.subtitle}</span></div></div><button aria-label="Tutup menu" className="text-neutral lg:hidden" onClick={() => setDrawer(false)}><X/></button></div>

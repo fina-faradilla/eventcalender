@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { CalendarCheck, ShieldCheck } from 'lucide-react';
 
 export default function LoginPage({ onLogin, api, Field, Alert, Spinner }) {
-    const [form, setForm] = useState({ email: '', password: '' });
+    const [form, setForm] = useState({ login: '', password: '' });
     const [errors, setErrors] = useState({});
     const [message, setMessage] = useState(window.__SESSION_ERROR__ || '');
     const [busy, setBusy] = useState(false);
@@ -12,12 +12,12 @@ export default function LoginPage({ onLogin, api, Field, Alert, Spinner }) {
         setMessage('');
         setErrors({});
         const next = {};
-        if (!form.email) next.email = 'Email wajib diisi.';
-        if (!form.password) next.password = 'Kata sandi wajib diisi.';
+        if (!form.login) next.login = 'Email, NIK, atau Username wajib diisi.';
+        if (!form.password) next.password = 'Kata sandi / PIN wajib diisi.';
         if (Object.keys(next).length) return setErrors(next);
         setBusy(true);
         try {
-            onLogin(await api('post', '/login', form));
+            onLogin(await api('post', '/login', { ...form, email: form.login }));
         } catch (error) {
             setMessage(error.message);
             setErrors(error.errors || {});
@@ -45,18 +45,19 @@ export default function LoginPage({ onLogin, api, Field, Alert, Spinner }) {
                     {message && <Alert tone="error">{message}</Alert>}
 
                     <div className="space-y-5">
-                        <Field label="Email" error={errors.email}>
+                        <Field label="Email / NIK / Username" error={errors.login || errors.email}>
                             <input
                                 autoComplete="username"
                                 autoFocus
                                 className="field"
-                                type="email"
-                                value={form.email}
-                                aria-invalid={!!errors.email}
-                                onChange={e => setForm({ ...form, email: e.target.value })}
-                                placeholder="nama@perusahaan.com"
+                                type="text"
+                                value={form.login}
+                                aria-invalid={!!(errors.login || errors.email)}
+                                onChange={e => setForm({ ...form, login: e.target.value })}
+                                placeholder="Email, NIK (Employee ID), atau Username"
                             />
                         </Field>
+
                         <Field label="Kata sandi" error={errors.password}>
                             <input
                                 autoComplete="current-password"

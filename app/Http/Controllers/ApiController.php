@@ -24,11 +24,26 @@ class ApiController extends Controller
 
     public function login(Request $request)
     {
-        $credentials = $request->validate(['email' => 'required|email', 'password' => 'required|string']);
-        $user = User::where('email', $credentials['email'])->first();
+        $credentials = $request->validate([
+            'email' => 'nullable|string',
+            'login' => 'nullable|string',
+            'password' => 'required|string',
+        ]);
+
+        $identifier = trim($credentials['login'] ?? ($credentials['email'] ?? ''));
+
+        $user = User::query()
+            ->where(function ($query) use ($identifier) {
+                $query->where('email', $identifier)
+                    ->orWhere('employee_id', $identifier)
+                    ->orWhereRaw('LOWER(email) = ?', [strtolower($identifier)]);
+            })
+            ->first();
+
         if (! $user || ! $user->is_active || ! Hash::check($credentials['password'], $user->password)) {
-            return response()->json(['message' => 'Email atau kata sandi tidak sesuai.'], 422);
+            return response()->json(['message' => 'Akun atau kata sandi tidak sesuai.'], 422);
         }
+
         Auth::login($user);
         $request->session()->regenerate();
 
@@ -37,12 +52,30 @@ class ApiController extends Controller
 
     public function logout(Request $request)
     {
+        $idToken = session('keycloak_id_token');
+
         Auth::guard('web')->logout();
         $request->session()->invalidate();
         $request->session()->regenerateToken();
 
-        return ['message' => 'Sesi berhasil diakhiri.'];
+        $keycloakBase = rtrim(config('services.keycloak.base_url', env('KEYCLOAK_BASE_URL', 'http://192.168.1.19:8080')), '/');
+        $realm = config('services.keycloak.realms', env('KEYCLOAK_REALM', 'technolife'));
+        $postLogoutRedirect = url('/');
+
+        $keycloakLogoutUrl = null;
+        if ($idToken) {
+            $keycloakLogoutUrl = "{$keycloakBase}/realms/{$realm}/protocol/openid-connect/logout?id_token_hint={$idToken}&post_logout_redirect_uri=" . urlencode($postLogoutRedirect);
+        } else {
+            $clientId = config('services.keycloak.client_id', env('KEYCLOAK_CLIENT_ID', 'event-calendar'));
+            $keycloakLogoutUrl = "{$keycloakBase}/realms/{$realm}/protocol/openid-connect/logout?client_id={$clientId}&post_logout_redirect_uri=" . urlencode($postLogoutRedirect);
+        }
+
+        return response()->json([
+            'message' => 'Sesi berhasil diakhiri.',
+            'keycloak_logout_url' => $keycloakLogoutUrl,
+        ]);
     }
+
 
     public function me(Request $request)
     {
@@ -365,13 +398,77 @@ class ApiController extends Controller
 
     public function saveUser(Request $request, ?User $user = null)
     {
-        $data = $request->validate(['name' => 'required|string|max:100', 'email' => ['required', 'email', Rule::unique('users')->ignore($user?->id)], 'role' => ['required', Rule::in(['PIC', 'APPROVER', 'ADMIN', 'STAFF'])], 'phone' => 'nullable|string|max:30', 'password' => [$user ? 'nullable' : 'required', 'min:8'], 'is_active' => 'required|boolean']);
+        $data = $request->validate([
+            'name' => 'required|string|max:100',
+            'email' => ['required', 'email', Rule::unique('users')->ignore($user?->id)],
+            'role' => ['required', Rule::in(['PIC', 'APPROVER', 'ADMIN', 'STAFF'])],
+            'phone' => 'nullable|string|max:30',
+            'employee_id' => 'nullable|string|max:30',
+            'password' => [$user ? 'nullable' : 'required', 'min:4'],
+            'is_active' => 'required|boolean',
+        ]);
+
+        $rawPassword = $data['password'] ?? null;
         if (empty($data['password'])) {
             unset($data['password']);
         }
 
-        return $user ? tap($user)->update($data) : User::create($data);
+        $savedUser = $user ? tap($user)->update($data) : User::create($data);
+
+        // Otomatis Sinkronisasi ke Keycloak SSO
+        try {
+            $keycloak = app(\App\Services\KeycloakAdminService::class);
+            $ssoId = $savedUser->sso_id;
+            $username = explode('@', $savedUser->email)[0];
+
+            if ($ssoId) {
+                $keycloak->updateUser($ssoId, [
+                    'firstName' => $savedUser->name,
+                    'email' => $savedUser->email,
+                    'phone' => $savedUser->phone,
+                    'employee_id' => $savedUser->employee_id,
+                    'password' => $rawPassword,
+                    'is_active' => (bool) $savedUser->is_active,
+                ]);
+            } else {
+                $existing = $keycloak->getUsers($savedUser->email, 0, 1);
+                if (! empty($existing)) {
+                    $ssoId = $existing[0]['id'];
+                    $keycloak->updateUser($ssoId, [
+                        'firstName' => $savedUser->name,
+                        'phone' => $savedUser->phone,
+                        'employee_id' => $savedUser->employee_id,
+                        'password' => $rawPassword,
+                        'is_active' => (bool) $savedUser->is_active,
+                    ]);
+                } else {
+                    $ssoId = $keycloak->createUser([
+                        'username' => $username,
+                        'firstName' => $savedUser->name,
+                        'email' => $savedUser->email,
+                        'phone' => $savedUser->phone,
+                        'employee_id' => $savedUser->employee_id,
+                        'password' => $rawPassword ?? '123456',
+                        'enabled' => (bool) $savedUser->is_active,
+                    ]);
+                }
+
+                if ($ssoId) {
+                    $savedUser->update(['sso_id' => $ssoId]);
+                }
+            }
+
+            // Sync client role event-calendar
+            if ($ssoId) {
+                $keycloak->syncUserClientRole($ssoId, 'event-calendar', $savedUser->role);
+            }
+        } catch (\Throwable $e) {
+            \Illuminate\Support\Facades\Log::warning('Keycloak saveUser sync notice: ' . $e->getMessage());
+        }
+
+        return $savedUser;
     }
+
 
     public function venues()
     {

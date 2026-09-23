@@ -10,7 +10,7 @@ export default defineConfig({
         strictPort: true,      // Mencegah Vite loncat ke port lain jika bentrok
         cors: true,
         hmr: {
-            host: '192.168.1.19', // IP PC Server
+            host: '192.168.1.201', // IP PC Server
             port: 5173,
         },
     },
