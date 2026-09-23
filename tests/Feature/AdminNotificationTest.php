@@ -66,7 +66,6 @@ class AdminNotificationTest extends TestCase
 
         $this->actingAs($approver)->postJson("/api/events/{$event->id}/decision", ['decision' => 'REJECT', 'rejection_reason' => 'Detail kegiatan belum lengkap.'])->assertOk();
 
-        $this->assertDatabaseHas('notifications', ['user_id' => $admin->id, 'event_id' => $event->id, 'title' => 'Acara ditolak']);
         $this->assertDatabaseHas('notifications', ['user_id' => $admin->id, 'event_id' => $event->id, 'title' => 'Permintaan revisi acara']);
     }
 

@@ -1,88 +1,515 @@
 import React, { useContext, useState, useEffect } from 'react';
 import { Check, ChevronLeft, ChevronRight, ClipboardCheck, Plus, X } from 'lucide-react';
+
 export default function createEventFeatures(deps) {
- const { useResource, SessionContext, PageHeader, ListToolbar, SearchField, Field, FormSection, Alert, Spinner, Modal, EmptyState, ErrorState, PageSkeleton, TableSkeleton, StatusBadge, Info, api, ToastContext, dateText, dateTimeText, timeText, uiText, STATUS } = deps;function EventList({ role, page }) {
-    const [query, setQuery] = useState(''); const [status, setStatus] = useState(''); const [formEvent, setFormEvent] = useState(null); const [detailId, setDetailId] = useState(null);
-    const [query, setQuery] = useState(''); const [status, setStatus] = useState(''); const [approverTab, setApproverTab] = useState('pending'); const [formEvent, setFormEvent] = useState(null); const [detailId, setDetailId] = useState(null);
-    const endpoint = `/events?per_page=50&search=${encodeURIComponent(query)}&status=${status}`;
-    const resource = useResource(endpoint, [query, status]);
-    const rows = resource.data?.data || [];
-    const filtered = page === 'pending' ? rows.filter(item => item.status === 'PENDING_APPROVAL') : rows;
-    const heading = page === 'pending' ? ['Antrean Persetujuan', 'Pengajuan acara yang menunggu tinjauan Anda.'] : page === 'schedule' ? ['Jadwal Saya', 'Acara yang ditugaskan kepada Anda.'] : role === 'ADMIN' ? ['Manajemen Acara', 'Pantau dan kelola seluruh acara perusahaan dan publik.'] : ['Acara Saya', 'Kelola dan pantau pengajuan acara Anda.'];
-    const filtered = page === 'pending'
-        ? (approverTab === 'pending' ? rows.filter(item => item.status === 'PENDING_APPROVAL')
-           : approverTab === 'revision' ? rows.filter(item => item.status === 'REJECTED')
-           : rows)
-        : rows;
-    const heading = page === 'pending' ? ['Antrean Persetujuan', 'Pengajuan acara yang menunggu tinjauan dan evaluasi Anda.'] : page === 'schedule' ? ['Jadwal Saya', 'Acara yang ditugaskan kepada Anda.'] : role === 'ADMIN' ? ['Manajemen Acara', 'Pantau dan kelola seluruh acara perusahaan dan publik.'] : ['Acara Saya', 'Kelola dan pantau pengajuan acara Anda.'];
-    if (detailId) return <EventDetail fullPage id={detailId} role={role} close={() => setDetailId(null)} edit={event => { setDetailId(null); setFormEvent(event); }} changed={resource.reload} backLabel={page === 'pending' ? 'Kembali ke Antrean Persetujuan' : 'Kembali ke Daftar Acara'}/>;
-    return <><PageHeader title={heading[0]} subtitle={heading[1]} action={role === 'PIC' && <button className="btn btn-primary" onClick={() => setFormEvent({})}><Plus size={17}/>Buat Acara</button>}/>
-        <section className="card"><ListToolbar single={page === 'pending'}><SearchField value={query} onChange={e => setQuery(e.target.value)} placeholder="Cari acara…"/>{page !== 'pending' && <select className="field list-toolbar-filter" value={status} onChange={e => setStatus(e.target.value)}><option value="">Semua status</option>{Object.entries(STATUS).map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select>}</ListToolbar>
-        {resource.loading ? <TableSkeleton/> : resource.error ? <ErrorState compact retry={resource.reload}/> : filtered.length ? <EventTable rows={filtered} open={setDetailId}/> : <EmptyState icon={ClipboardCheck} title={page === 'pending' ? 'Tidak ada persetujuan tertunda' : page === 'schedule' ? 'Belum ada acara yang ditugaskan' : 'Belum ada acara'} description={query || status ? 'Tidak ada data yang sesuai dengan pencarian atau filter.' : 'Data acara akan muncul di sini setelah tersedia.'}/>}</section>
-        <section className="card">
-            {page === 'pending' && <div className="flex flex-wrap gap-2 border-b border-line p-4"><button className={`btn min-h-8 px-3.5 py-1.5 text-xs ${approverTab === 'pending' ? 'btn-primary' : 'btn-secondary'}`} onClick={() => setApproverTab('pending')}>Menunggu Persetujuan ({rows.filter(i => i.status === 'PENDING_APPROVAL').length})</button><button className={`btn min-h-8 px-3.5 py-1.5 text-xs ${approverTab === 'revision' ? 'btn-primary' : 'btn-secondary'}`} onClick={() => setApproverTab('revision')}>Perlu Revisi ({rows.filter(i => i.status === 'REJECTED').length})</button><button className={`btn min-h-8 px-3.5 py-1.5 text-xs ${approverTab === 'all' ? 'btn-primary' : 'btn-secondary'}`} onClick={() => setApproverTab('all')}>Semua Riwayat ({rows.length})</button></div>}
-            <ListToolbar single={page === 'pending' && approverTab !== 'all'}><SearchField value={query} onChange={e => setQuery(e.target.value)} placeholder="Cari acara…"/>{page !== 'pending' && <select className="field list-toolbar-filter" value={status} onChange={e => setStatus(e.target.value)}><option value="">Semua status</option>{Object.entries(STATUS).map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select>}</ListToolbar>
-            {resource.loading ? <TableSkeleton/> : resource.error ? <ErrorState compact retry={resource.reload}/> : filtered.length ? <EventTable rows={filtered} open={setDetailId}/> : <EmptyState icon={ClipboardCheck} title={page === 'pending' ? (approverTab === 'revision' ? 'Tidak ada acara yang sedang direvisi' : approverTab === 'pending' ? 'Tidak ada persetujuan tertunda' : 'Belum ada data riwayat') : page === 'schedule' ? 'Belum ada acara yang ditugaskan' : 'Belum ada acara'} description={query || status ? 'Tidak ada data yang sesuai dengan pencarian atau filter.' : 'Data acara akan muncul di sini setelah tersedia.'}/>}
-        </section>
-        {formEvent !== null && <EventForm event={formEvent} close={() => setFormEvent(null)} done={saved => { setFormEvent(null); resource.reload(); if (saved?.id) setDetailId(saved.id); }}/>} 
-    </>;
-}
+    const { useResource, SessionContext, PageHeader, ListToolbar, SearchField, Field, FormSection, Alert, Spinner, Modal, EmptyState, ErrorState, PageSkeleton, TableSkeleton, StatusBadge, Info, api, ToastContext, dateText, dateTimeText, timeText, uiText, STATUS } = deps;
 
-function EventTable({ rows, open }) {
-    return <div className="mobile-scroll"><table className="w-full min-w-[900px] text-sm"><thead><tr className="border-b border-line bg-canvas text-left text-xs uppercase tracking-wide text-neutral"><th className="p-4">Acara</th><th className="p-4">Jadwal</th><th className="p-4">Lokasi</th><th className="p-4">PIC</th><th className="p-4">Staf</th><th className="p-4">Status</th><th className="p-4 text-right">Aksi</th></tr></thead><tbody>{rows.map(event => <tr key={event.id} className="table-row border-b border-line last:border-0"><td className="p-4"><b className="block max-w-64 truncate">{event.event_name || 'Draf tanpa judul'}</b><span className="text-xs text-neutral">{event.custom_event_type || event.event_type || 'Jenis belum dipilih'}</span></td><td className="p-4 whitespace-nowrap"><b>{dateText(event.event_date)}</b><span className="block text-xs text-neutral">{timeText(event.start_time)}–{timeText(event.end_time)}</span></td><td className="p-4">{event.venue?.name || event.custom_venue || '—'}</td><td className="p-4">{event.creator?.name || '—'}</td><td className="p-4"><b>{event.staff?.length || 0}/{event.staff_required || 0}</b><span className="block text-xs text-neutral">{event.staff?.length >= event.staff_required ? 'Terpenuhi' : 'Belum lengkap'}</span></td><td className="p-4"><StatusBadge status={event.status}/></td><td className="p-4 text-right"><button className="btn btn-secondary min-h-0 px-3 py-2 text-xs" onClick={() => open(event.id)}>Lihat detail</button></td></tr>)}</tbody></table></div>;
-}
+    function EventList({ role, page }) {
+        const [query, setQuery] = useState('');
+        const [status, setStatus] = useState('');
+        const [approverTab, setApproverTab] = useState('pending');
+        const [formEvent, setFormEvent] = useState(null);
+        const [detailId, setDetailId] = useState(null);
 
-function FullPageDetail({ title, subtitle, close, backLabel = 'Kembali ke daftar acara', children }) {
-    return <div className="event-detail-page"><button className="text-button mb-5" onClick={close}><ChevronLeft size={18}/>{backLabel}</button><PageHeader title={title} subtitle={subtitle}/><div className="card p-5 sm:p-7">{children}</div></div>;
-}
+        const endpoint = `/events?per_page=50&search=${encodeURIComponent(query)}&status=${status}`;
+        const resource = useResource(endpoint, [query, status]);
+        const rows = resource.data?.data || [];
+        const filtered = page === 'pending'
+            ? (approverTab === 'pending' ? rows.filter(item => item.status === 'PENDING_APPROVAL')
+               : approverTab === 'revision' ? rows.filter(item => item.status === 'REJECTED')
+               : rows)
+            : rows;
 
-function EventDetail({ id, role, close, edit, changed, fullPage = false, backLabel }) {
-    const resource = useResource(`/events/${id}`); const [rejecting, setRejecting] = useState(false); const [reason, setReason] = useState(''); const [busy, setBusy] = useState(false); const toast = useContext(ToastContext);
-    async function decide(decision) {
-        if (decision === 'REJECT' && reason.trim().length < 5) return toast('Alasan penolakan minimal 5 karakter.', 'error');
-        setBusy(true); try { await api('post', `/events/${id}/decision`, { decision, rejection_reason: reason }); toast(decision === 'APPROVE' ? 'Acara berhasil disetujui.' : 'Acara telah ditolak.'); changed(); close(); } catch (error) { toast(error.message, 'error'); } finally { setBusy(false); }
-        if (decision === 'REJECT' && reason.trim().length < 5) return toast('Catatan revisi minimal 5 karakter.', 'error');
-        setBusy(true); try { await api('post', `/events/${id}/decision`, { decision, rejection_reason: reason }); toast(decision === 'APPROVE' ? 'Acara berhasil disetujui.' : 'Permintaan revisi berhasil dikirim.'); changed(); close(); } catch (error) { toast(error.message, 'error'); } finally { setBusy(false); }
+        const heading = page === 'pending'
+            ? ['Antrean Persetujuan', 'Pengajuan acara yang menunggu tinjauan dan evaluasi Anda.']
+            : page === 'schedule'
+            ? ['Jadwal Saya', 'Acara yang ditugaskan kepada Anda.']
+            : role === 'ADMIN'
+            ? ['Manajemen Acara', 'Pantau dan kelola seluruh acara perusahaan dan publik.']
+            : ['Acara Saya', 'Kelola dan pantau pengajuan acara Anda.'];
+
+        if (detailId) {
+            return (
+                <EventDetail
+                    fullPage
+                    id={detailId}
+                    role={role}
+                    close={() => setDetailId(null)}
+                    edit={event => { setDetailId(null); setFormEvent(event); }}
+                    changed={resource.reload}
+                    backLabel={page === 'pending' ? 'Kembali ke Antrean Persetujuan' : 'Kembali ke Daftar Acara'}
+                />
+            );
+        }
+
+        return (
+            <>
+                <PageHeader
+                    title={heading[0]}
+                    subtitle={heading[1]}
+                    action={role === 'PIC' && (
+                        <button className="btn btn-primary" onClick={() => setFormEvent({})}>
+                            <Plus size={17} />Buat Acara
+                        </button>
+                    )}
+                />
+                <section className="card">
+                    {page === 'pending' && (
+                        <div className="flex flex-wrap gap-2 border-b border-line p-4">
+                            <button
+                                className={`btn min-h-8 px-3.5 py-1.5 text-xs ${approverTab === 'pending' ? 'btn-primary' : 'btn-secondary'}`}
+                                onClick={() => setApproverTab('pending')}
+                            >
+                                Menunggu Persetujuan ({rows.filter(i => i.status === 'PENDING_APPROVAL').length})
+                            </button>
+                            <button
+                                className={`btn min-h-8 px-3.5 py-1.5 text-xs ${approverTab === 'revision' ? 'btn-primary' : 'btn-secondary'}`}
+                                onClick={() => setApproverTab('revision')}
+                            >
+                                Perlu Revisi ({rows.filter(i => i.status === 'REJECTED').length})
+                            </button>
+                            <button
+                                className={`btn min-h-8 px-3.5 py-1.5 text-xs ${approverTab === 'all' ? 'btn-primary' : 'btn-secondary'}`}
+                                onClick={() => setApproverTab('all')}
+                            >
+                                Semua Riwayat ({rows.length})
+                            </button>
+                        </div>
+                    )}
+                    <ListToolbar single={page === 'pending' && approverTab !== 'all'}>
+                        <SearchField value={query} onChange={e => setQuery(e.target.value)} placeholder="Cari acara…" />
+                        {page !== 'pending' && (
+                            <select className="field list-toolbar-filter" value={status} onChange={e => setStatus(e.target.value)}>
+                                <option value="">Semua status</option>
+                                {Object.entries(STATUS).map(([value, label]) => <option key={value} value={value}>{label}</option>)}
+                            </select>
+                        )}
+                    </ListToolbar>
+                    {resource.loading ? (
+                        <TableSkeleton />
+                    ) : resource.error ? (
+                        <ErrorState compact retry={resource.reload} />
+                    ) : filtered.length ? (
+                        <EventTable rows={filtered} open={setDetailId} />
+                    ) : (
+                        <EmptyState
+                            icon={ClipboardCheck}
+                            title={
+                                page === 'pending'
+                                    ? (approverTab === 'revision' ? 'Tidak ada acara yang sedang direvisi' : approverTab === 'pending' ? 'Tidak ada persetujuan tertunda' : 'Belum ada data riwayat')
+                                    : page === 'schedule'
+                                    ? 'Belum ada acara yang ditugaskan'
+                                    : 'Belum ada acara'
+                            }
+                            description={query || status ? 'Tidak ada data yang sesuai dengan pencarian atau filter.' : 'Data acara akan muncul di sini setelah tersedia.'}
+                        />
+                    )}
+                </section>
+                {formEvent !== null && (
+                    <EventForm
+                        event={formEvent}
+                        close={() => setFormEvent(null)}
+                        done={saved => {
+                            setFormEvent(null);
+                            resource.reload();
+                            if (saved?.id) setDetailId(saved.id);
+                        }}
+                    />
+                )}
+            </>
+        );
     }
-    const Frame = fullPage ? FullPageDetail : Modal;
-    if (resource.loading) return <Frame title="Detail Acara" close={close} backLabel={backLabel}><PageSkeleton cards={2}/></Frame>;
-    if (resource.error) return <Frame title="Detail Acara" close={close} backLabel={backLabel}><ErrorState retry={resource.reload}/></Frame>;
-    const event = resource.data; const last = event.approvals?.at(-1);
-    return <Frame title={event.event_name || 'Acara tanpa judul'} subtitle={`${event.custom_event_type || event.event_type || 'Acara'} · EVT-${String(event.id).padStart(4,'0')}`} close={close} backLabel={backLabel}>
-        <div className="mb-5 flex flex-wrap items-center gap-2"><StatusBadge status={event.status}/><span className="text-xs text-neutral">Dibuat {dateTimeText(event.created_at)}</span></div>
-        <section className="grid gap-x-8 gap-y-5 border-y border-line py-5 sm:grid-cols-2"><Info label="PIC" value={event.creator?.name}/><Info label="Tanggal reservasi" value={dateText(event.event_date)}/><Info label="Waktu" value={`${timeText(event.start_time)}–${timeText(event.end_time)}`}/><Info label="Lokasi" value={event.venue?.name || event.custom_venue}/><Info label="Jumlah peserta" value={event.participants_count ? `${event.participants_count} orang` : 'Belum diisi'}/><Info label="Kebutuhan staf" value={`${event.staff?.length || 0}/${event.staff_required || 0} staf`}/></section>
-        <section className="mt-5"><h3 className="text-sm font-black">Staf yang ditugaskan</h3>{event.staff?.length ? <div className="mt-3 flex flex-wrap gap-2">{event.staff.map(person => <span key={person.id} className="badge badge-neutral">{person.name}</span>)}</div> : <p className="mt-2 text-sm text-neutral">Belum ada staf yang ditugaskan.</p>}</section>
-        <section className="mt-5 grid gap-5 sm:grid-cols-2"><div><h3 className="text-sm font-black">Deskripsi</h3><p className="mt-2 whitespace-pre-wrap text-sm leading-6 text-neutral">{event.description || 'Tidak ada deskripsi.'}</p></div><div><h3 className="text-sm font-black">Catatan internal</h3><p className="mt-2 whitespace-pre-wrap text-sm leading-6 text-neutral">{event.notes || 'Tidak ada catatan.'}</p></div></section>
-        <section className="mt-6"><h3 className="text-sm font-black">Riwayat persetujuan</h3>{event.approvals?.length ? <div className="mt-3 space-y-3">{event.approvals.map(item => <div key={item.id} className="border-l-2 border-brand pl-4 text-sm"><div className="flex flex-wrap justify-between gap-2"><b>{item.status === 'APPROVED' ? 'Disetujui' : item.status === 'RESUBMITTED' ? 'Direvisi & diajukan ulang' : 'Ditolak'} oleh {item.approver?.name}</b><span className="text-xs text-neutral">{dateTimeText(item.created_at)}</span></div>{item.rejection_reason && <p className="mt-1 text-brand-dark">{item.rejection_reason}</p>}</div>)}</div> : <p className="mt-2 text-sm text-neutral">Belum ada keputusan persetujuan.</p>}</section>
-        {last?.rejection_reason && event.status === 'REJECTED' && <Alert tone="error"><b>Alasan penolakan:</b> {last.rejection_reason}</Alert>}
-        {rejecting && <div className="mt-5 border-t border-line pt-5"><Field label="Alasan penolakan" hint="Jelaskan perubahan yang perlu dilakukan PIC."><textarea autoFocus className="field" rows="3" value={reason} onChange={e => setReason(e.target.value)} /></Field><div className="mt-3 flex justify-end gap-2"><button className="btn btn-secondary" onClick={() => setRejecting(false)}>Batal</button><button className="btn btn-danger" disabled={busy} onClick={() => decide('REJECT')}>Konfirmasi penolakan</button></div></div>}
-        {!rejecting && <div className="mt-6 flex flex-wrap justify-end gap-2">{role === 'PIC' && ['DRAFT', 'REJECTED'].includes(event.status) && <button className="btn btn-primary" onClick={() => edit(event)}>Revisi & Ajukan Ulang</button>}{role === 'APPROVER' && event.status === 'PENDING_APPROVAL' && <><button className="btn btn-secondary" onClick={() => setRejecting(true)}>Tolak / Minta Revisi</button><button className="btn btn-primary" disabled={busy} onClick={() => decide('APPROVE')}><Check size={17}/>Setujui Pengajuan</button></>}</div>}
-        <section className="mt-6"><h3 className="text-sm font-black">Riwayat persetujuan & revisi</h3>{event.approvals?.length ? <div className="mt-3 space-y-3">{event.approvals.map(item => <div key={item.id} className="rounded-lg border border-line bg-canvas/60 p-3.5 text-sm"><div className="flex flex-wrap items-center justify-between gap-2"><div className="flex items-center gap-2"><span className={`badge ${item.status === 'APPROVED' ? 'badge-approved' : item.status === 'RESUBMITTED' ? 'badge-ongoing' : 'badge-rejected'}`}>{item.status === 'APPROVED' ? 'Disetujui' : item.status === 'RESUBMITTED' ? 'Direvisi & diajukan ulang' : 'Perlu Revisi'}</span><b className="text-ink">oleh {item.approver?.name || 'Penyetuju'}</b></div><span className="text-xs text-neutral">{dateTimeText(item.created_at)}</span></div>{item.rejection_reason && <div className="mt-2.5 rounded-md border border-brand/20 bg-brand-soft/40 p-2.5 text-xs text-brand-dark sm:text-sm"><b className="block font-semibold text-brand">Catatan revisi:</b><p className="mt-1 leading-relaxed text-ink whitespace-pre-wrap">{item.rejection_reason}</p></div>}</div>)}</div> : <p className="mt-2 text-sm text-neutral">Belum ada riwayat persetujuan atau revisi.</p>}</section>
-        {last?.rejection_reason && event.status === 'REJECTED' && <Alert tone="error"><b>Status: Perlu Revisi</b><p className="mt-1 text-sm">Catatan dari penelaah: {last.rejection_reason}</p></Alert>}
-        {rejecting && <div className="mt-5 rounded-lg border border-line bg-canvas p-4"><Field label="Catatan revisi" hint="Jelaskan perubahan yang perlu dilakukan PIC."><textarea autoFocus className="field" rows="3" value={reason} onChange={e => setReason(e.target.value)} placeholder="Tuliskan catatan dan poin perbaikan yang diperlukan..." /></Field><div className="mt-3 flex justify-end gap-2"><button className="btn btn-secondary" onClick={() => setRejecting(false)}>Batal</button><button className="btn btn-danger" disabled={busy} onClick={() => decide('REJECT')}>Kirim Permintaan Revisi</button></div></div>}
-        {!rejecting && <div className="mt-6 flex flex-wrap justify-end gap-2">{role === 'PIC' && ['DRAFT', 'REJECTED'].includes(event.status) && <button className="btn btn-primary" onClick={() => edit(event)}>Revisi & Ajukan Ulang</button>}{role === 'APPROVER' && event.status === 'PENDING_APPROVAL' && <><button className="btn btn-secondary" onClick={() => setRejecting(true)}>Minta Revisi</button><button className="btn btn-primary" disabled={busy} onClick={() => decide('APPROVE')}><Check size={17}/>Setujui Pengajuan</button></>}</div>}
-    </Frame>;
-}
 
-function EventForm({ event = {}, close, done }) {
-    const isRevision = event.status === 'REJECTED';
-    const revisionRequest = isRevision ? [...(event.approvals || [])].reverse().find(item => item.status === 'REJECTED') : null;
-    const [form, setForm] = useState({ event_name: event.event_name || '', event_type: event.event_type || '', custom_event_type: event.custom_event_type || '', event_date: event.event_date || '', start_time: timeText(event.start_time) === '—' ? '' : timeText(event.start_time), end_time: timeText(event.end_time) === '—' ? '' : timeText(event.end_time), venue_id: event.venue_id || '', custom_venue: event.custom_venue || '', participants_count: event.participants_count || '', staff_required: event.staff_required ?? '', staff_ids: event.staff?.map(person => person.id) || [], description: event.description || '', notes: event.notes || '' });
-    const [meta, setMeta] = useState({ venues: [], staff: [], types: [] }); const [loadingMeta, setLoadingMeta] = useState(true); const [errors, setErrors] = useState({}); const [message, setMessage] = useState(''); const [busy, setBusy] = useState(false); const toast = useContext(ToastContext);
-    const set = (key, value) => setForm(current => ({ ...current, [key]: value }));
-    async function loadMeta() { setLoadingMeta(true); try { const params = form.event_date && form.start_time && form.end_time ? `?event_date=${form.event_date}&start_time=${form.start_time}&end_time=${form.end_time}${event.id ? `&event_id=${event.id}` : ''}` : ''; setMeta(await api('get', `/bootstrap${params}`)); } catch (error) { setMessage(error.message); } finally { setLoadingMeta(false); } }
-    useEffect(() => { loadMeta(); }, [form.event_date, form.start_time, form.end_time]);
-    async function save(submit) { setBusy(true); setErrors({}); setMessage(''); try { const saved = await api(event.id ? 'put' : 'post', event.id ? `/events/${event.id}` : '/events', { ...form, submit }); toast(isRevision ? 'Revisi berhasil diajukan ulang.' : submit ? 'Acara berhasil diajukan untuk persetujuan.' : 'Draf berhasil disimpan.'); done(saved); } catch (error) { setErrors(error.errors || {}); setMessage(error.message); } finally { setBusy(false); } }
-    const selectedVenue = meta.venues.find(venue => String(venue.id) === String(form.venue_id));
-    return <Modal title={isRevision ? 'Revisi Acara' : event.id ? 'Edit Acara' : 'Buat Acara'} subtitle={isRevision ? `EVT-${String(event.id).padStart(4, '0')} · ${event.event_name}` : 'Lengkapi informasi reservasi dan kebutuhan operasional.'} close={close}>
-        {isRevision && <Alert tone="error"><b className="block">Revisi Diminta</b><span className="mt-1 block text-sm">Penyetuju: {revisionRequest?.approver?.name || '—'}</span><span className="mt-1 block text-sm">Catatan revisi: {revisionRequest?.rejection_reason || 'Tidak ada catatan revisi.'}</span></Alert>}
-        {message && <Alert tone="error">{message}</Alert>}
-        <FormSection title="Informasi acara" description="Judul, jenis, dan kebutuhan peserta."><div className="grid gap-4 sm:grid-cols-2"><Field label="Nama acara" error={errors.event_name}><input className="field" value={form.event_name} onChange={e => set('event_name', e.target.value)} placeholder="Nama kegiatan" /></Field><Field label="Jenis acara" error={errors.event_type}><select className="field" value={form.event_type} onChange={e => set('event_type', e.target.value)}><option value="">Pilih jenis acara</option>{meta.types.map(type => <option key={type}>{type}</option>)}</select></Field>{form.event_type === 'Other' && <Field label="Jenis acara lainnya" error={errors.custom_event_type}><input className="field" value={form.custom_event_type} onChange={e => set('custom_event_type', e.target.value)} /></Field>}<Field label="Jumlah peserta" error={errors.participants_count}><input type="number" min="1" className="field" value={form.participants_count} onChange={e => set('participants_count', e.target.value)} placeholder="Contoh: 50" /></Field></div></FormSection>
-        <FormSection title="Jadwal & Lokasi" description="Jadwal digunakan untuk memeriksa konflik lokasi dan staf."><div className="grid gap-4 sm:grid-cols-3"><Field label="Tanggal reservasi" error={errors.event_date}><input type="date" min={new Date().toISOString().slice(0, 10)} className="field" value={form.event_date} onChange={e => set('event_date', e.target.value)} /></Field><Field label="Waktu mulai" error={errors.start_time}><input type="time" className="field" value={form.start_time} onChange={e => set('start_time', e.target.value)} /></Field><Field label="Waktu selesai" error={errors.end_time}><input type="time" className="field" value={form.end_time} onChange={e => set('end_time', e.target.value)} /></Field></div><div className="mt-4 grid gap-4 sm:grid-cols-2"><Field label="Lokasi" error={errors.venue_id || errors.custom_venue}><select className="field" value={form.venue_id} onChange={e => set('venue_id', e.target.value)}><option value="">Lokasi lainnya</option>{meta.venues.map(venue => <option disabled={!venue.available && String(venue.id) !== String(form.venue_id)} key={venue.id} value={venue.id}>{venue.name} · Kapasitas {venue.capacity || '—'} · {venue.available || String(venue.id) === String(form.venue_id) ? 'Tersedia' : 'Tidak tersedia'}</option>)}</select>{selectedVenue && <p className="mt-2 text-xs text-neutral">{selectedVenue.type || 'Lokasi'} · {selectedVenue.location || 'Lokasi belum diisi'} · Kapasitas {selectedVenue.capacity || '—'} orang · {selectedVenue.available ? 'Tersedia pada jadwal ini' : 'Tidak tersedia pada jadwal ini'}</p>}</Field>{!form.venue_id && <Field label="Nama lokasi lainnya" error={errors.custom_venue}><input className="field" value={form.custom_venue} onChange={e => set('custom_venue', e.target.value)} /></Field>}</div></FormSection>
-        <FormSection title="Kebutuhan operasional" description="Staf yang bentrok dengan jadwal tidak dapat dipilih."><div className="grid gap-4 sm:grid-cols-2"><Field label="Jumlah staf dibutuhkan" error={errors.staff_required}><input type="number" min="0" max="100" className="field" value={form.staff_required} onChange={e => set('staff_required', e.target.value)} /></Field><Field label="Staf yang ditugaskan" error={errors.staff_ids} hint={`${form.staff_ids.length}/${form.staff_required || 0} staf dipilih`}><div className="max-h-44 overflow-auto rounded-md border border-line p-2">{loadingMeta ? <div className="p-3 text-sm text-neutral">Memeriksa ketersediaan…</div> : meta.staff.length ? meta.staff.map(person => { const checked = form.staff_ids.includes(person.id); return <label key={person.id} className={`flex items-center gap-3 rounded px-2 py-2 text-sm ${person.available ? 'hover:bg-canvas' : 'cursor-not-allowed opacity-50'}`}><input type="checkbox" disabled={!person.available && !checked} checked={checked} onChange={e => set('staff_ids', e.target.checked ? [...form.staff_ids, person.id] : form.staff_ids.filter(id => id !== person.id))}/><span className="flex-1"><b>{person.name}</b><span className="block text-xs text-neutral">Staf · {person.available || checked ? 'Tersedia' : 'Tidak tersedia pada jadwal ini'}</span></span></label>; }) : <p className="p-3 text-sm text-neutral">Tidak ada staf aktif.</p>}</div></Field></div></FormSection>
-        <FormSection title="Detail tambahan"><div className="grid gap-4 sm:grid-cols-2"><Field label="Deskripsi event" error={errors.description}><textarea className="field" rows="4" value={form.description} onChange={e => set('description', e.target.value)} placeholder="Tujuan dan rangkaian kegiatan" /></Field><Field label="Catatan internal" error={errors.notes}><textarea className="field" rows="4" value={form.notes} onChange={e => set('notes', e.target.value)} placeholder="Informasi khusus untuk tim internal" /></Field></div></FormSection>
-        <div className="sticky -bottom-6 -mx-6 mt-6 flex flex-col-reverse gap-2 border-t border-line bg-white px-6 py-4 sm:flex-row sm:justify-end"><button disabled={busy} className="btn btn-secondary" onClick={close}>Batal</button>{!isRevision && <button disabled={busy} className="btn btn-secondary" onClick={() => save(false)}>Simpan Draf</button>}<button disabled={busy} className="btn btn-primary" onClick={() => save(true)}>{busy ? <><Spinner/>Menyimpan…</> : isRevision ? 'Simpan & Ajukan Ulang' : 'Ajukan untuk Persetujuan'}</button></div>
-    </Modal>;
-}
- return { EventList, EventTable, FullPageDetail, EventDetail, EventForm };
+    function EventTable({ rows, open }) {
+        return (
+            <div className="mobile-scroll">
+                <table className="w-full min-w-[900px] text-sm">
+                    <thead>
+                        <tr className="border-b border-line bg-canvas text-left text-xs uppercase tracking-wide text-neutral">
+                            <th className="p-4">Acara</th>
+                            <th className="p-4">Jadwal</th>
+                            <th className="p-4">Lokasi</th>
+                            <th className="p-4">PIC</th>
+                            <th className="p-4">Staf</th>
+                            <th className="p-4">Status</th>
+                            <th className="p-4 text-right">Aksi</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {rows.map(event => (
+                            <tr key={event.id} className="table-row border-b border-line last:border-0">
+                                <td className="p-4">
+                                    <b className="block max-w-64 truncate">{event.event_name || 'Draf tanpa judul'}</b>
+                                    <span className="text-xs text-neutral">{event.custom_event_type || event.event_type || 'Jenis belum dipilih'}</span>
+                                </td>
+                                <td className="p-4 whitespace-nowrap">
+                                    <b>{dateText(event.event_date)}</b>
+                                    <span className="block text-xs text-neutral">{timeText(event.start_time)}–{timeText(event.end_time)}</span>
+                                </td>
+                                <td className="p-4">{event.venue?.name || event.custom_venue || '—'}</td>
+                                <td className="p-4">{event.creator?.name || '—'}</td>
+                                <td className="p-4">
+                                    <b>{event.staff?.length || 0}/{event.staff_required || 0}</b>
+                                    <span className="block text-xs text-neutral">{event.staff?.length >= event.staff_required ? 'Terpenuhi' : 'Belum lengkap'}</span>
+                                </td>
+                                <td className="p-4"><StatusBadge status={event.status} /></td>
+                                <td className="p-4 text-right">
+                                    <button className="btn btn-secondary min-h-0 px-3 py-2 text-xs" onClick={() => open(event.id)}>
+                                        Lihat detail
+                                    </button>
+                                </td>
+                            </tr>
+                        ))}
+                    </tbody>
+                </table>
+            </div>
+        );
+    }
+
+    function FullPageDetail({ title, subtitle, close, backLabel = 'Kembali ke daftar acara', children }) {
+        return (
+            <div className="event-detail-page">
+                <button className="text-button mb-5" onClick={close}>
+                    <ChevronLeft size={18} />{backLabel}
+                </button>
+                <PageHeader title={title} subtitle={subtitle} />
+                <div className="card p-5 sm:p-7">{children}</div>
+            </div>
+        );
+    }
+
+    function EventDetail({ id, role, close, edit, changed, fullPage = false, backLabel }) {
+        const resource = useResource(`/events/${id}`);
+        const [rejecting, setRejecting] = useState(false);
+        const [reason, setReason] = useState('');
+        const [busy, setBusy] = useState(false);
+        const toast = useContext(ToastContext);
+
+        async function decide(decision) {
+            if (decision === 'REJECT' && reason.trim().length < 5) {
+                return toast('Catatan revisi minimal 5 karakter.', 'error');
+            }
+            setBusy(true);
+            try {
+                await api('post', `/events/${id}/decision`, { decision, rejection_reason: reason });
+                toast(decision === 'APPROVE' ? 'Acara berhasil disetujui.' : 'Permintaan revisi berhasil dikirim.');
+                changed();
+                close();
+            } catch (error) {
+                toast(error.message, 'error');
+            } finally {
+                setBusy(false);
+            }
+        }
+
+        const Frame = fullPage ? FullPageDetail : Modal;
+        if (resource.loading) return <Frame title="Detail Acara" close={close} backLabel={backLabel}><PageSkeleton cards={2} /></Frame>;
+        if (resource.error) return <Frame title="Detail Acara" close={close} backLabel={backLabel}><ErrorState retry={resource.reload} /></Frame>;
+
+        const event = resource.data;
+        const last = event.approvals?.at(-1);
+
+        return (
+            <Frame
+                title={event.event_name || 'Acara tanpa judul'}
+                subtitle={`${event.custom_event_type || event.event_type || 'Acara'} · EVT-${String(event.id).padStart(4, '0')}`}
+                close={close}
+                backLabel={backLabel}
+            >
+                <div className="mb-5 flex flex-wrap items-center gap-2">
+                    <StatusBadge status={event.status} />
+                    <span className="text-xs text-neutral">Dibuat {dateTimeText(event.created_at)}</span>
+                </div>
+                <section className="grid gap-x-8 gap-y-5 border-y border-line py-5 sm:grid-cols-2">
+                    <Info label="PIC" value={event.creator?.name} />
+                    <Info label="Tanggal reservasi" value={dateText(event.event_date)} />
+                    <Info label="Waktu" value={`${timeText(event.start_time)}–${timeText(event.end_time)}`} />
+                    <Info label="Lokasi" value={event.venue?.name || event.custom_venue} />
+                    <Info label="Jumlah peserta" value={event.participants_count ? `${event.participants_count} orang` : 'Belum diisi'} />
+                    <Info label="Kebutuhan staf" value={`${event.staff?.length || 0}/${event.staff_required || 0} staf`} />
+                </section>
+                <section className="mt-5">
+                    <h3 className="text-sm font-black">Staf yang ditugaskan</h3>
+                    {event.staff?.length ? (
+                        <div className="mt-3 flex flex-wrap gap-2">
+                            {event.staff.map(person => <span key={person.id} className="badge badge-neutral">{person.name}</span>)}
+                        </div>
+                    ) : (
+                        <p className="mt-2 text-sm text-neutral">Belum ada staf yang ditugaskan.</p>
+                    )}
+                </section>
+                <section className="mt-5 grid gap-5 sm:grid-cols-2">
+                    <div>
+                        <h3 className="text-sm font-black">Deskripsi</h3>
+                        <p className="mt-2 whitespace-pre-wrap text-sm leading-6 text-neutral">{event.description || 'Tidak ada deskripsi.'}</p>
+                    </div>
+                    <div>
+                        <h3 className="text-sm font-black">Catatan internal</h3>
+                        <p className="mt-2 whitespace-pre-wrap text-sm leading-6 text-neutral">{event.notes || 'Tidak ada catatan.'}</p>
+                    </div>
+                </section>
+                <section className="mt-6">
+                    <h3 className="text-sm font-black">Riwayat persetujuan & revisi</h3>
+                    {event.approvals?.length ? (
+                        <div className="mt-3 space-y-3">
+                            {event.approvals.map(item => (
+                                <div key={item.id} className="rounded-lg border border-line bg-canvas/60 p-3.5 text-sm">
+                                    <div className="flex flex-wrap items-center justify-between gap-2">
+                                        <div className="flex items-center gap-2">
+                                            <span className={`badge ${item.status === 'APPROVED' ? 'badge-approved' : item.status === 'RESUBMITTED' ? 'badge-ongoing' : 'badge-rejected'}`}>
+                                                {item.status === 'APPROVED' ? 'Disetujui' : item.status === 'RESUBMITTED' ? 'Direvisi & diajukan ulang' : 'Perlu Revisi'}
+                                            </span>
+                                            <b className="text-ink">oleh {item.approver?.name || 'Penyetuju'}</b>
+                                        </div>
+                                        <span className="text-xs text-neutral">{dateTimeText(item.created_at)}</span>
+                                    </div>
+                                    {item.rejection_reason && (
+                                        <div className="mt-2.5 rounded-md border border-brand/20 bg-brand-soft/40 p-2.5 text-xs text-brand-dark sm:text-sm">
+                                            <b className="block font-semibold text-brand">Catatan revisi:</b>
+                                            <p className="mt-1 leading-relaxed text-ink whitespace-pre-wrap">{item.rejection_reason}</p>
+                                        </div>
+                                    )}
+                                </div>
+                            ))}
+                        </div>
+                    ) : (
+                        <p className="mt-2 text-sm text-neutral">Belum ada riwayat persetujuan atau revisi.</p>
+                    )}
+                </section>
+                {last?.rejection_reason && event.status === 'REJECTED' && (
+                    <Alert tone="error">
+                        <b>Status: Perlu Revisi</b>
+                        <p className="mt-1 text-sm">Catatan dari penelaah: {last.rejection_reason}</p>
+                    </Alert>
+                )}
+                {rejecting && (
+                    <div className="mt-5 rounded-lg border border-line bg-canvas p-4">
+                        <Field label="Catatan revisi" hint="Jelaskan perubahan yang perlu dilakukan PIC.">
+                            <textarea
+                                autoFocus
+                                className="field"
+                                rows="3"
+                                value={reason}
+                                onChange={e => setReason(e.target.value)}
+                                placeholder="Tuliskan catatan dan poin perbaikan yang diperlukan..."
+                            />
+                        </Field>
+                        <div className="mt-3 flex justify-end gap-2">
+                            <button className="btn btn-secondary" onClick={() => setRejecting(false)}>Batal</button>
+                            <button className="btn btn-danger" disabled={busy} onClick={() => decide('REJECT')}>Kirim Permintaan Revisi</button>
+                        </div>
+                    </div>
+                )}
+                {!rejecting && (
+                    <div className="mt-6 flex flex-wrap justify-end gap-2">
+                        {role === 'PIC' && ['DRAFT', 'REJECTED'].includes(event.status) && (
+                            <button className="btn btn-primary" onClick={() => edit(event)}>Revisi & Ajukan Ulang</button>
+                        )}
+                        {role === 'APPROVER' && event.status === 'PENDING_APPROVAL' && (
+                            <>
+                                <button className="btn btn-secondary" onClick={() => setRejecting(true)}>Minta Revisi</button>
+                                <button className="btn btn-primary" disabled={busy} onClick={() => decide('APPROVE')}>
+                                    <Check size={17} />Setujui Pengajuan
+                                </button>
+                            </>
+                        )}
+                    </div>
+                )}
+            </Frame>
+        );
+    }
+
+    function EventForm({ event = {}, close, done }) {
+        const isRevision = event.status === 'REJECTED';
+        const revisionRequest = isRevision ? [...(event.approvals || [])].reverse().find(item => item.status === 'REJECTED') : null;
+        const [form, setForm] = useState({
+            event_name: event.event_name || '',
+            event_type: event.event_type || '',
+            custom_event_type: event.custom_event_type || '',
+            event_date: event.event_date || '',
+            start_time: timeText(event.start_time) === '—' ? '' : timeText(event.start_time),
+            end_time: timeText(event.end_time) === '—' ? '' : timeText(event.end_time),
+            venue_id: event.venue_id || '',
+            custom_venue: event.custom_venue || '',
+            participants_count: event.participants_count || '',
+            staff_required: event.staff_required ?? '',
+            staff_ids: event.staff?.map(person => person.id) || [],
+            description: event.description || '',
+            notes: event.notes || '',
+        });
+        const [meta, setMeta] = useState({ venues: [], staff: [], types: [] });
+        const [loadingMeta, setLoadingMeta] = useState(true);
+        const [errors, setErrors] = useState({});
+        const [message, setMessage] = useState('');
+        const [busy, setBusy] = useState(false);
+        const toast = useContext(ToastContext);
+        const set = (key, value) => setForm(current => ({ ...current, [key]: value }));
+
+        async function loadMeta() {
+            setLoadingMeta(true);
+            try {
+                const params = form.event_date && form.start_time && form.end_time
+                    ? `?event_date=${form.event_date}&start_time=${form.start_time}&end_time=${form.end_time}${event.id ? `&event_id=${event.id}` : ''}`
+                    : '';
+                setMeta(await api('get', `/bootstrap${params}`));
+            } catch (error) {
+                setMessage(error.message);
+            } finally {
+                setLoadingMeta(false);
+            }
+        }
+
+        useEffect(() => { loadMeta(); }, [form.event_date, form.start_time, form.end_time]);
+
+        async function save(submit) {
+            setBusy(true);
+            setErrors({});
+            setMessage('');
+            try {
+                const saved = await api(event.id ? 'put' : 'post', event.id ? `/events/${event.id}` : '/events', { ...form, submit });
+                toast(isRevision ? 'Revisi berhasil diajukan ulang.' : submit ? 'Acara berhasil diajukan untuk persetujuan.' : 'Draf berhasil disimpan.');
+                done(saved);
+            } catch (error) {
+                setErrors(error.errors || {});
+                setMessage(error.message);
+            } finally {
+                setBusy(false);
+            }
+        }
+
+        const selectedVenue = meta.venues.find(venue => String(venue.id) === String(form.venue_id));
+
+        return (
+            <Modal
+                title={isRevision ? 'Revisi Acara' : event.id ? 'Edit Acara' : 'Buat Acara'}
+                subtitle={isRevision ? `EVT-${String(event.id).padStart(4, '0')} · ${event.event_name}` : 'Lengkapi informasi reservasi dan kebutuhan operasional.'}
+                close={close}
+            >
+                {isRevision && (
+                    <Alert tone="error">
+                        <b className="block">Revisi Diminta</b>
+                        <span className="mt-1 block text-sm">Penyetuju: {revisionRequest?.approver?.name || '—'}</span>
+                        <span className="mt-1 block text-sm">Catatan revisi: {revisionRequest?.rejection_reason || 'Tidak ada catatan revisi.'}</span>
+                    </Alert>
+                )}
+                {message && <Alert tone="error">{message}</Alert>}
+                <FormSection title="Informasi acara" description="Judul, jenis, dan kebutuhan peserta.">
+                    <div className="grid gap-4 sm:grid-cols-2">
+                        <Field label="Nama acara" error={errors.event_name}>
+                            <input className="field" value={form.event_name} onChange={e => set('event_name', e.target.value)} placeholder="Nama kegiatan" />
+                        </Field>
+                        <Field label="Jenis acara" error={errors.event_type}>
+                            <select className="field" value={form.event_type} onChange={e => set('event_type', e.target.value)}>
+                                <option value="">Pilih jenis acara</option>
+                                {meta.types.map(type => <option key={type}>{type}</option>)}
+                            </select>
+                        </Field>
+                        {form.event_type === 'Other' && (
+                            <Field label="Jenis acara lainnya" error={errors.custom_event_type}>
+                                <input className="field" value={form.custom_event_type} onChange={e => set('custom_event_type', e.target.value)} />
+                            </Field>
+                        )}
+                        <Field label="Jumlah peserta" error={errors.participants_count}>
+                            <input type="number" min="1" className="field" value={form.participants_count} onChange={e => set('participants_count', e.target.value)} placeholder="Contoh: 50" />
+                        </Field>
+                    </div>
+                </FormSection>
+                <FormSection title="Jadwal & Lokasi" description="Jadwal digunakan untuk memeriksa konflik lokasi dan staf.">
+                    <div className="grid gap-4 sm:grid-cols-3">
+                        <Field label="Tanggal reservasi" error={errors.event_date}>
+                            <input type="date" min={new Date().toISOString().slice(0, 10)} className="field" value={form.event_date} onChange={e => set('event_date', e.target.value)} />
+                        </Field>
+                        <Field label="Waktu mulai" error={errors.start_time}>
+                            <input type="time" className="field" value={form.start_time} onChange={e => set('start_time', e.target.value)} />
+                        </Field>
+                        <Field label="Waktu selesai" error={errors.end_time}>
+                            <input type="time" className="field" value={form.end_time} onChange={e => set('end_time', e.target.value)} />
+                        </Field>
+                    </div>
+                    <div className="mt-4 grid gap-4 sm:grid-cols-2">
+                        <Field label="Lokasi" error={errors.venue_id || errors.custom_venue}>
+                            <select className="field" value={form.venue_id} onChange={e => set('venue_id', e.target.value)}>
+                                <option value="">Lokasi lainnya</option>
+                                {meta.venues.map(venue => (
+                                    <option
+                                        disabled={!venue.available && String(venue.id) !== String(form.venue_id)}
+                                        key={venue.id}
+                                        value={venue.id}
+                                    >
+                                        {venue.name} · Kapasitas {venue.capacity || '—'} · {venue.available || String(venue.id) === String(form.venue_id) ? 'Tersedia' : 'Tidak tersedia'}
+                                    </option>
+                                ))}
+                            </select>
+                            {selectedVenue && (
+                                <p className="mt-2 text-xs text-neutral">
+                                    {selectedVenue.type || 'Lokasi'} · {selectedVenue.location || 'Lokasi belum diisi'} · Kapasitas {selectedVenue.capacity || '—'} orang · {selectedVenue.available ? 'Tersedia pada jadwal ini' : 'Tidak tersedia pada jadwal ini'}
+                                </p>
+                            )}
+                        </Field>
+                        {!form.venue_id && (
+                            <Field label="Nama lokasi lainnya" error={errors.custom_venue}>
+                                <input className="field" value={form.custom_venue} onChange={e => set('custom_venue', e.target.value)} />
+                            </Field>
+                        )}
+                    </div>
+                </FormSection>
+                <FormSection title="Kebutuhan operasional" description="Staf yang bentrok dengan jadwal tidak dapat dipilih.">
+                    <div className="grid gap-4 sm:grid-cols-2">
+                        <Field label="Jumlah staf dibutuhkan" error={errors.staff_required}>
+                            <input type="number" min="0" max="100" className="field" value={form.staff_required} onChange={e => set('staff_required', e.target.value)} />
+                        </Field>
+                        <Field label="Staf yang ditugaskan" error={errors.staff_ids} hint={`${form.staff_ids.length}/${form.staff_required || 0} staf dipilih`}>
+                            <div className="max-h-44 overflow-auto rounded-md border border-line p-2">
+                                {loadingMeta ? (
+                                    <div className="p-3 text-sm text-neutral">Memeriksa ketersediaan…</div>
+                                ) : meta.staff.length ? (
+                                    meta.staff.map(person => {
+                                        const checked = form.staff_ids.includes(person.id);
+                                        return (
+                                            <label
+                                                key={person.id}
+                                                className={`flex items-center gap-3 rounded px-2 py-2 text-sm ${person.available ? 'hover:bg-canvas' : 'cursor-not-allowed opacity-50'}`}
+                                            >
+                                                <input
+                                                    type="checkbox"
+                                                    disabled={!person.available && !checked}
+                                                    checked={checked}
+                                                    onChange={e => set('staff_ids', e.target.checked ? [...form.staff_ids, person.id] : form.staff_ids.filter(id => id !== person.id))}
+                                                />
+                                                <span className="flex-1">
+                                                    <b>{person.name}</b>
+                                                    <span className="block text-xs text-neutral">Staf · {person.available || checked ? 'Tersedia' : 'Tidak tersedia pada jadwal ini'}</span>
+                                                </span>
+                                            </label>
+                                        );
+                                    })
+                                ) : (
+                                    <p className="p-3 text-sm text-neutral">Tidak ada staf aktif.</p>
+                                )}
+                            </div>
+                        </Field>
+                    </div>
+                </FormSection>
+                <FormSection title="Detail tambahan">
+                    <div className="grid gap-4 sm:grid-cols-2">
+                        <Field label="Deskripsi event" error={errors.description}>
+                            <textarea className="field" rows="4" value={form.description} onChange={e => set('description', e.target.value)} placeholder="Tujuan dan rangkaian kegiatan" />
+                        </Field>
+                        <Field label="Catatan internal" error={errors.notes}>
+                            <textarea className="field" rows="4" value={form.notes} onChange={e => set('notes', e.target.value)} placeholder="Informasi khusus untuk tim internal" />
+                        </Field>
+                    </div>
+                </FormSection>
+                <div className="sticky -bottom-6 -mx-6 mt-6 flex flex-col-reverse gap-2 border-t border-line bg-white px-6 py-4 sm:flex-row sm:justify-end">
+                    <button disabled={busy} className="btn btn-secondary" onClick={close}>Batal</button>
+                    {!isRevision && <button disabled={busy} className="btn btn-secondary" onClick={() => save(false)}>Simpan Draf</button>}
+                    <button disabled={busy} className="btn btn-primary" onClick={() => save(true)}>
+                        {busy ? <><Spinner />Menyimpan…</> : isRevision ? 'Simpan & Ajukan Ulang' : 'Ajukan untuk Persetujuan'}
+                    </button>
+                </div>
+            </Modal>
+        );
+    }
+
+    return { EventList, EventTable, FullPageDetail, EventDetail, EventForm };
 }

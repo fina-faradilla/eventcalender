@@ -32,7 +32,6 @@ const SessionContext = createContext(null);
 const ToastContext = createContext(() => {});
 const STATUS = {
     DRAFT: 'Draf', PENDING_APPROVAL: 'Menunggu Persetujuan', APPROVED: 'Disetujui',
-    REJECTED: 'Ditolak', SCHEDULED: 'Terjadwal', ONGOING: 'Sedang Berlangsung',
     REJECTED: 'Perlu Revisi', SCHEDULED: 'Terjadwal', ONGOING: 'Sedang Berlangsung',
     COMPLETED: 'Selesai', CANCELLED: 'Dibatalkan',
 };
