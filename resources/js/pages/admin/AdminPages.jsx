@@ -85,7 +85,7 @@ function OperationalAnalytics({ events }) {
                             </div>
                         </div>
                     ))}
-                    {!usage.length && <p className="text-sm text-neutral">Data penggunaan lokasi belum tersedia.</p>}
+                    {!usage.length && <p className="text-sm text-neutral">Data penggunaan lokasi belum tersedia</p>}
                 </div>
             </aside>
         </section>
