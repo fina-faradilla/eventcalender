@@ -6,8 +6,9 @@ export default function OperationalChart({ series }) {
         return null;
     }
 
-    const [selectedIndex, setSelectedIndex] = useState(series.length - 1);
-    const selectedItem = series[selectedIndex] ?? series[series.length - 1];
+    const [selectedIndex, setSelectedIndex] = useState(null);
+    const selectedItem = selectedIndex !== null ? (series[selectedIndex] ?? null) : null;
+
 
     const width = 760;
     const height = 240;
@@ -46,7 +47,7 @@ export default function OperationalChart({ series }) {
 
             {/* SVG Dual-line Chart */}
             <div className="relative">
-                <svg viewBox={`0 0 ${width} ${height}`} className="w-full overflow-visible">
+                <svg viewBox={`0 0 ${width} ${height}`} className="chart-svg w-full overflow-visible">
                     <defs>
                         <linearGradient id="eventGrad" x1="0%" y1="0%" x2="0%" y2="100%">
                             <stop offset="0%" stopColor="#9E0A2B" stopOpacity="0.18" />
@@ -165,41 +166,26 @@ export default function OperationalChart({ series }) {
                 ))}
             </div>
 
-            {/* Selected Month Detail Card */}
+            {/* Selected Month Detail — compact inline bar */}
             {selectedItem && (
-                <div className="mt-4 rounded-xl border border-line bg-canvas/60 p-4 transition-all">
-                    <div className="flex flex-wrap items-center justify-between gap-3 border-b border-line pb-2.5">
-                        <div className="flex items-center gap-2">
-                            <Calendar size={16} className="text-brand" />
-                            <span className="font-bold text-ink text-sm">
-                                Detail Bulan: {selectedItem.fullLabel || selectedItem.label}
-                            </span>
-                        </div>
-                        <span className="text-[11px] font-medium text-neutral">Bulan Dipilih</span>
+                <div className="mt-3 flex flex-wrap items-center gap-3 rounded-lg border border-line bg-canvas/70 px-4 py-3">
+                    <div className="flex items-center gap-1.5 text-brand">
+                        <Calendar size={14} />
+                        <span className="text-xs font-bold text-ink">
+                            {selectedItem.fullLabel || selectedItem.label}
+                        </span>
                     </div>
-                    <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-2">
-                        <div className="flex items-center gap-3 rounded-lg border border-brand/20 bg-brand-soft/30 p-3">
-                            <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-brand text-white font-bold text-xs">
-                                EVT
-                            </div>
-                            <div>
-                                <span className="block text-xs font-medium text-neutral">Total Acara</span>
-                                <b className="text-lg text-ink font-bold">
-                                    {(selectedItem.events ?? selectedItem.value ?? 0).toLocaleString('id-ID')} Acara
-                                </b>
-                            </div>
-                        </div>
-                        <div className="flex items-center gap-3 rounded-lg border border-sky-200 bg-sky-50/60 p-3">
-                            <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-[#0284c7] text-white">
-                                <Users size={18} />
-                            </div>
-                            <div>
-                                <span className="block text-xs font-medium text-neutral">Total Pengunjung</span>
-                                <b className="text-lg text-ink font-bold">
-                                    {(selectedItem.participants ?? 0).toLocaleString('id-ID')} Orang
-                                </b>
-                            </div>
-                        </div>
+                    <span className="h-4 w-px bg-line hidden sm:block" />
+                    <div className="flex items-center gap-1.5">
+                        <span className="inline-flex h-5 w-5 items-center justify-center rounded bg-brand text-white font-bold text-[9px]">EVT</span>
+                        <span className="text-xs font-semibold text-ink">{(selectedItem.events ?? selectedItem.value ?? 0).toLocaleString('id-ID')} Acara</span>
+                    </div>
+                    <span className="h-4 w-px bg-line hidden sm:block" />
+                    <div className="flex items-center gap-1.5">
+                        <span className="inline-flex h-5 w-5 items-center justify-center rounded bg-[#0284c7] text-white">
+                            <Users size={11} />
+                        </span>
+                        <span className="text-xs font-semibold text-ink">{(selectedItem.participants ?? 0).toLocaleString('id-ID')} Pengunjung</span>
                     </div>
                 </div>
             )}
