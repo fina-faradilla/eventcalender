@@ -14,6 +14,7 @@ Route::middleware('auth')->group(function () {
     Route::get('/events/{event}', [ApiController::class, 'show']);
     Route::put('/events/{event}', [ApiController::class, 'update'])->middleware('role:PIC');
     Route::post('/events/{event}/decision', [ApiController::class, 'decide'])->middleware('role:APPROVER');
+    Route::post('/events/{event}/evaluation', [ApiController::class, 'evaluate'])->middleware('role:ADMIN');
     Route::get('/notifications', [ApiController::class, 'notifications']);
     Route::patch('/notifications/read-all', [ApiController::class, 'readAllNotifications']);
     Route::delete('/notifications', [ApiController::class, 'deleteAllNotifications']);

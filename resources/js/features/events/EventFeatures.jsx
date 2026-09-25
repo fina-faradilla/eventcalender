@@ -183,7 +183,19 @@ export default function createEventFeatures(deps) {
         const [rejecting, setRejecting] = useState(false);
         const [reason, setReason] = useState('');
         const [busy, setBusy] = useState(false);
+        const [evaluationText, setEvaluationText] = useState('');
+        const [isEditingEvaluation, setIsEditingEvaluation] = useState(false);
+        const [evaluating, setEvaluating] = useState(false);
         const toast = useContext(ToastContext);
+
+        const event = resource.data;
+        const last = event?.approvals?.at(-1);
+
+        useEffect(() => {
+            if (event?.evaluation) {
+                setEvaluationText(event.evaluation);
+            }
+        }, [event?.evaluation]);
 
         async function decide(decision) {
             if (decision === 'REJECT' && reason.trim().length < 5) {
@@ -193,7 +205,7 @@ export default function createEventFeatures(deps) {
             try {
                 await api('post', `/events/${id}/decision`, { decision, rejection_reason: reason });
                 toast(decision === 'APPROVE' ? 'Acara berhasil disetujui.' : 'Permintaan revisi berhasil dikirim.');
-                changed();
+                if (changed) changed();
                 close();
             } catch (error) {
                 toast(error.message, 'error');
@@ -202,12 +214,27 @@ export default function createEventFeatures(deps) {
             }
         }
 
+        async function saveEvaluation() {
+            if (!evaluationText.trim() || evaluationText.trim().length < 3) {
+                return toast('Evaluasi minimal 3 karakter.', 'error');
+            }
+            setEvaluating(true);
+            try {
+                await api('post', `/events/${id}/evaluation`, { evaluation: evaluationText.trim() });
+                toast('Evaluasi acara berhasil disimpan.');
+                setIsEditingEvaluation(false);
+                resource.reload();
+                if (changed) changed();
+            } catch (error) {
+                toast(error.message || 'Gagal menyimpan evaluasi.', 'error');
+            } finally {
+                setEvaluating(false);
+            }
+        }
+
         const Frame = fullPage ? FullPageDetail : Modal;
         if (resource.loading) return <Frame title="Detail Acara" close={close} backLabel={backLabel}><PageSkeleton cards={2} /></Frame>;
         if (resource.error) return <Frame title="Detail Acara" close={close} backLabel={backLabel}><ErrorState retry={resource.reload} /></Frame>;
-
-        const event = resource.data;
-        const last = event.approvals?.at(-1);
 
         return (
             <Frame
@@ -248,6 +275,78 @@ export default function createEventFeatures(deps) {
                         <p className="mt-2 whitespace-pre-wrap text-sm leading-6 text-neutral">{event.notes || 'Tidak ada catatan.'}</p>
                     </div>
                 </section>
+
+                {/* Evaluasi Pasca Acara (Admin & Semua User yang melihat acara selesai/dievaluasi) */}
+                {(event.status === 'COMPLETED' || event.evaluation) && (
+                    <section className="mt-6 rounded-xl border border-line bg-canvas/50 p-4">
+                        <div className="flex flex-wrap items-center justify-between gap-2">
+                            <div>
+                                <h3 className="text-sm font-black text-ink">Evaluasi Pelaksanaan Acara</h3>
+                                <p className="text-xs text-neutral">Tinjauan dan hasil evaluasi setelah acara selesai</p>
+                            </div>
+                            {role === 'ADMIN' && event.status === 'COMPLETED' && event.evaluation && !isEditingEvaluation && (
+                                <button
+                                    className="btn btn-secondary min-h-8 px-3 py-1 text-xs"
+                                    onClick={() => {
+                                        setEvaluationText(event.evaluation);
+                                        setIsEditingEvaluation(true);
+                                    }}
+                                >
+                                    Ubah Evaluasi
+                                </button>
+                            )}
+                        </div>
+
+                        {event.evaluation && !isEditingEvaluation ? (
+                            <div className="mt-3 rounded-lg border border-brand/20 bg-brand-soft/30 p-3.5">
+                                <div className="flex flex-wrap items-center justify-between gap-2 border-b border-brand/10 pb-2 text-xs">
+                                    <span className="font-bold text-brand">
+                                        Dievaluasi oleh {event.evaluator?.name || 'Administrator'}
+                                    </span>
+                                    <span className="text-neutral">{dateTimeText(event.evaluated_at)}</span>
+                                </div>
+                                <p className="mt-2.5 whitespace-pre-wrap text-sm leading-relaxed text-ink font-medium">
+                                    {event.evaluation}
+                                </p>
+                            </div>
+                        ) : role === 'ADMIN' && event.status === 'COMPLETED' ? (
+                            <div className="mt-3 space-y-3">
+                                <Field label="Catatan Evaluasi" hint="Ketik manual evaluasi acara (apakah berjalan baik, antusiasme peserta, kendala, dll.)">
+                                    <textarea
+                                        className="field min-h-[100px]"
+                                        rows="4"
+                                        value={evaluationText}
+                                        onChange={e => setEvaluationText(e.target.value)}
+                                        placeholder="Ketik manual evaluasi pelaksanaan acara di sini (misal: Acara berjalan sangat baik dan tertib, kendala audio teratasi cepat, antusiasme peserta tinggi)..."
+                                    />
+                                </Field>
+                                <div className="flex justify-end gap-2">
+                                    {isEditingEvaluation && (
+                                        <button
+                                            className="btn btn-secondary"
+                                            onClick={() => {
+                                                setIsEditingEvaluation(false);
+                                                setEvaluationText(event.evaluation || '');
+                                            }}
+                                        >
+                                            Batal
+                                        </button>
+                                    )}
+                                    <button
+                                        className="btn btn-primary"
+                                        disabled={busy || evaluating || !evaluationText.trim()}
+                                        onClick={saveEvaluation}
+                                    >
+                                        {evaluating ? 'Menyimpan…' : 'Simpan Evaluasi'}
+                                    </button>
+                                </div>
+                            </div>
+                        ) : (
+                            <p className="mt-3 text-sm text-neutral">Belum ada evaluasi yang diberikan untuk acara ini.</p>
+                        )}
+                    </section>
+                )}
+
                 <section className="mt-6">
                     <h3 className="text-sm font-black">Riwayat persetujuan & revisi</h3>
                     {event.approvals?.length ? (

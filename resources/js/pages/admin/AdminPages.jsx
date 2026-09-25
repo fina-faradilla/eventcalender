@@ -34,9 +34,62 @@ function Reports() {
 }
 
 function OperationalAnalytics({ events }) {
-    const anchor = new Date(); anchor.setDate(1); const series = Array.from({length: 7}, (_, index) => { const date = new Date(anchor.getFullYear(), anchor.getMonth() - 6 + index, 1); const key = `${date.getFullYear()}-${String(date.getMonth()+1).padStart(2,'0')}`; return { key, label: date.toLocaleDateString('id-ID',{month:'short'}), value: events.filter(event => event.event_date?.startsWith(key)).length }; });
-    const usage = Object.values(events.reduce((result,event) => { const name=event.venue?.name || event.custom_venue || 'Belum ditentukan'; result[name] ||= {name,value:0}; result[name].value++; return result; },{})).sort((a,b)=>b.value-a.value).slice(0,4); const usageMax=Math.max(1,...usage.map(item=>item.value));
-    return <section className="mt-6 grid gap-6 lg:grid-cols-[2fr_1fr]"><div className="card p-6"><div className="flex items-start justify-between gap-4"><div><h2 className="section-title">Volume Acara</h2><p className="mt-1 text-sm text-neutral">Jumlah acara per bulan dari data yang dimuat</p></div><span className="badge badge-neutral">Bulanan</span></div><OperationalChart series={series}/></div><aside className="card p-6"><h2 className="section-title">Penggunaan Lokasi</h2><p className="mt-1 text-sm text-neutral">Pemesanan berdasarkan lokasi</p><div className="report-bars mt-7">{usage.map(item=><div key={item.name}><div className="mb-2 flex justify-between gap-3 text-sm"><b className="truncate">{item.name}</b><span>{item.value}</span></div><div className="h-2.5 overflow-hidden rounded-full bg-brand-soft"><span className="block h-full rounded-full bg-brand" style={{width:`${(item.value/usageMax)*100}%`}}/></div></div>)}{!usage.length && <p className="text-sm text-neutral">Data penggunaan lokasi belum tersedia.</p>}</div></aside></section>;
+    const anchor = new Date();
+    anchor.setDate(1);
+    const series = Array.from({ length: 7 }, (_, index) => {
+        const date = new Date(anchor.getFullYear(), anchor.getMonth() - 6 + index, 1);
+        const key = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
+        const monthEvents = (events || []).filter(event => event.event_date?.startsWith(key));
+        const totalParticipants = monthEvents.reduce((sum, e) => sum + Number(e.participants_count || 0), 0);
+        return {
+            key,
+            label: date.toLocaleDateString('id-ID', { month: 'short' }),
+            fullLabel: date.toLocaleDateString('id-ID', { month: 'long', year: 'numeric' }),
+            value: monthEvents.length,
+            events: monthEvents.length,
+            participants: totalParticipants,
+        };
+    });
+    const usage = Object.values((events || []).reduce((result, event) => {
+        const name = event.venue?.name || event.custom_venue || 'Belum ditentukan';
+        result[name] ||= { name, value: 0 };
+        result[name].value++;
+        return result;
+    }, {})).sort((a, b) => b.value - a.value).slice(0, 4);
+    const usageMax = Math.max(1, ...usage.map(item => item.value));
+
+    return (
+        <section className="mt-6 grid gap-6 lg:grid-cols-[2fr_1fr]">
+            <div className="card p-6">
+                <div className="flex flex-wrap items-start justify-between gap-4">
+                    <div>
+                        <h2 className="section-title">Volume Acara & Total Pengunjung</h2>
+                        <p className="mt-1 text-sm text-neutral">Statistik perbandingan jumlah acara dan total pengunjung per bulan</p>
+                    </div>
+                    <span className="badge badge-neutral">7 Bulan Terakhir</span>
+                </div>
+                <OperationalChart series={series} />
+            </div>
+            <aside className="card p-6">
+                <h2 className="section-title">Penggunaan Lokasi</h2>
+                <p className="mt-1 text-sm text-neutral">Pemesanan berdasarkan lokasi</p>
+                <div className="report-bars mt-7">
+                    {usage.map(item => (
+                        <div key={item.name}>
+                            <div className="mb-2 flex justify-between gap-3 text-sm">
+                                <b className="truncate">{item.name}</b>
+                                <span>{item.value} acara</span>
+                            </div>
+                            <div className="h-2.5 overflow-hidden rounded-full bg-brand-soft">
+                                <span className="block h-full rounded-full bg-brand" style={{ width: `${(item.value / usageMax) * 100}%` }} />
+                            </div>
+                        </div>
+                    ))}
+                    {!usage.length && <p className="text-sm text-neutral">Data penggunaan lokasi belum tersedia.</p>}
+                </div>
+            </aside>
+        </section>
+    );
 }
     return { UserManagement, UserForm, VenueManagement, VenueForm, Reports, OperationalAnalytics };
 }

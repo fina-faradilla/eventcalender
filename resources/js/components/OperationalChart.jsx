@@ -1,19 +1,208 @@
-import React from 'react';
+import React, { useState } from 'react';
+import { Calendar, Users } from 'lucide-react';
 
 export default function OperationalChart({ series }) {
-    const width = 760, height = 280, padX = 44, padY = 28;
-    const max = Math.max(1, ...series.map(item => item.value));
+    if (!series || !series.length) {
+        return null;
+    }
+
+    const [selectedIndex, setSelectedIndex] = useState(series.length - 1);
+    const selectedItem = series[selectedIndex] ?? series[series.length - 1];
+
+    const width = 760;
+    const height = 240;
+    const padX = 44;
+    const padY = 24;
+
+    const maxEvents = Math.max(1, ...series.map(item => item.events ?? item.value ?? 0));
+    const maxParticipants = Math.max(1, ...series.map(item => item.participants ?? 0));
+
     const x = index => padX + index * ((width - padX * 2) / Math.max(1, series.length - 1));
-    const y = value => height - padY - (value / max) * (height - padY * 2);
-    const points = series.map((item, index) => `${x(index)},${y(item.value)}`).join(' ');
-    const area = `${padX},${height-padY} ${points} ${x(series.length-1)},${height-padY}`;
-    return <div className="operational-chart" role="img" aria-label="Acara dikelompokkan berdasarkan bulan">
-        <svg viewBox={`0 0 ${width} ${height}`} preserveAspectRatio="none">
-            {[0,.25,.5,.75,1].map(step => <line key={step} x1={padX} x2={width-padX} y1={y(max*step)} y2={y(max*step)} className="chart-gridline"/>)}
-            <polygon points={area} className="chart-area"/>
-            <polyline points={points} className="chart-line"/>
-            {series.map((item,index) => <circle key={item.key} cx={x(index)} cy={y(item.value)} r="4" className="chart-point"/>)}
-        </svg>
-        <div className="chart-labels">{series.map(item => <span key={item.key}>{item.label}</span>)}</div>
-    </div>;
+    const yEvents = value => (height - padY) - (value / maxEvents) * (height - padY * 2);
+    const yParticipants = value => (height - padY) - (value / maxParticipants) * (height - padY * 2);
+
+    const eventPoints = series.map((item, index) => `${x(index)},${yEvents(item.events ?? item.value ?? 0)}`).join(' ');
+    const eventArea = `${padX},${height - padY} ${eventPoints} ${x(series.length - 1)},${height - padY}`;
+
+    const participantPoints = series.map((item, index) => `${x(index)},${yParticipants(item.participants ?? 0)}`).join(' ');
+    const participantArea = `${padX},${height - padY} ${participantPoints} ${x(series.length - 1)},${height - padY}`;
+
+    return (
+        <div className="operational-chart" role="img" aria-label="Grafik volume acara dan total pengunjung bulanan">
+            {/* Chart Legend */}
+            <div className="mb-4 flex flex-wrap items-center justify-between gap-3 text-xs">
+                <div className="flex items-center gap-4 font-medium">
+                    <span className="inline-flex items-center gap-1.5">
+                        <span className="inline-block h-3 w-3 rounded-full bg-[#9E0A2B]" />
+                        <span className="font-semibold text-ink">Volume Acara</span>
+                    </span>
+                    <span className="inline-flex items-center gap-1.5">
+                        <span className="inline-block h-3 w-3 rounded-full bg-[#0284c7]" />
+                        <span className="font-semibold text-ink">Total Pengunjung</span>
+                    </span>
+                </div>
+                <span className="text-neutral text-[11px]">Klik titik/bulan untuk melihat detail</span>
+            </div>
+
+            {/* SVG Dual-line Chart */}
+            <div className="relative">
+                <svg viewBox={`0 0 ${width} ${height}`} className="w-full overflow-visible">
+                    <defs>
+                        <linearGradient id="eventGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+                            <stop offset="0%" stopColor="#9E0A2B" stopOpacity="0.18" />
+                            <stop offset="100%" stopColor="#9E0A2B" stopOpacity="0.0" />
+                        </linearGradient>
+                        <linearGradient id="participantGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+                            <stop offset="0%" stopColor="#0284c7" stopOpacity="0.18" />
+                            <stop offset="100%" stopColor="#0284c7" stopOpacity="0.0" />
+                        </linearGradient>
+                    </defs>
+
+                    {/* Horizontal Gridlines */}
+                    {[0, 0.25, 0.5, 0.75, 1].map(step => (
+                        <line
+                            key={step}
+                            x1={padX}
+                            x2={width - padX}
+                            y1={(height - padY) - step * (height - padY * 2)}
+                            y2={(height - padY) - step * (height - padY * 2)}
+                            className="chart-gridline"
+                        />
+                    ))}
+
+                    {/* Selected Month Guideline */}
+                    {selectedIndex !== null && (
+                        <line
+                            x1={x(selectedIndex)}
+                            x2={x(selectedIndex)}
+                            y1={padY}
+                            y2={height - padY}
+                            stroke="#94a3b8"
+                            strokeWidth="1.5"
+                            strokeDasharray="4 3"
+                        />
+                    )}
+
+                    {/* Shaded Area Gradients */}
+                    <polygon points={eventArea} fill="url(#eventGrad)" />
+                    <polygon points={participantArea} fill="url(#participantGrad)" />
+
+                    {/* Event Line (Red) */}
+                    <polyline
+                        points={eventPoints}
+                        fill="none"
+                        stroke="#9E0A2B"
+                        strokeWidth="3"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                    />
+
+                    {/* Participant Line (Blue) */}
+                    <polyline
+                        points={participantPoints}
+                        fill="none"
+                        stroke="#0284c7"
+                        strokeWidth="3"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                    />
+
+                    {/* Points & Hitboxes */}
+                    {series.map((item, index) => {
+                        const cx = x(index);
+                        const cyEvt = yEvents(item.events ?? item.value ?? 0);
+                        const cyPart = yParticipants(item.participants ?? 0);
+                        const isSelected = selectedIndex === index;
+
+                        return (
+                            <g key={item.key} className="cursor-pointer" onClick={() => setSelectedIndex(index)}>
+                                <rect
+                                    x={cx - 24}
+                                    y={0}
+                                    width={48}
+                                    height={height}
+                                    fill="transparent"
+                                />
+
+                                {/* Event Point */}
+                                <circle
+                                    cx={cx}
+                                    cy={cyEvt}
+                                    r={isSelected ? 6 : 4}
+                                    fill={isSelected ? '#9E0A2B' : '#ffffff'}
+                                    stroke="#9E0A2B"
+                                    strokeWidth={isSelected ? 3 : 2}
+                                />
+
+                                {/* Participant Point */}
+                                <circle
+                                    cx={cx}
+                                    cy={cyPart}
+                                    r={isSelected ? 6 : 4}
+                                    fill={isSelected ? '#0284c7' : '#ffffff'}
+                                    stroke="#0284c7"
+                                    strokeWidth={isSelected ? 3 : 2}
+                                />
+                            </g>
+                        );
+                    })}
+                </svg>
+            </div>
+
+            {/* X-Axis Month Labels */}
+            <div className="chart-labels mt-2">
+                {series.map((item, index) => (
+                    <button
+                        key={item.key}
+                        type="button"
+                        onClick={() => setSelectedIndex(index)}
+                        className={`text-center py-1 rounded transition-colors text-xs ${
+                            selectedIndex === index ? 'font-bold text-brand bg-brand-soft/40' : 'hover:text-ink text-neutral'
+                        }`}
+                    >
+                        {item.label}
+                    </button>
+                ))}
+            </div>
+
+            {/* Selected Month Detail Card */}
+            {selectedItem && (
+                <div className="mt-4 rounded-xl border border-line bg-canvas/60 p-4 transition-all">
+                    <div className="flex flex-wrap items-center justify-between gap-3 border-b border-line pb-2.5">
+                        <div className="flex items-center gap-2">
+                            <Calendar size={16} className="text-brand" />
+                            <span className="font-bold text-ink text-sm">
+                                Detail Bulan: {selectedItem.fullLabel || selectedItem.label}
+                            </span>
+                        </div>
+                        <span className="text-[11px] font-medium text-neutral">Bulan Dipilih</span>
+                    </div>
+                    <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-2">
+                        <div className="flex items-center gap-3 rounded-lg border border-brand/20 bg-brand-soft/30 p-3">
+                            <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-brand text-white font-bold text-xs">
+                                EVT
+                            </div>
+                            <div>
+                                <span className="block text-xs font-medium text-neutral">Total Acara</span>
+                                <b className="text-lg text-ink font-bold">
+                                    {(selectedItem.events ?? selectedItem.value ?? 0).toLocaleString('id-ID')} Acara
+                                </b>
+                            </div>
+                        </div>
+                        <div className="flex items-center gap-3 rounded-lg border border-sky-200 bg-sky-50/60 p-3">
+                            <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-[#0284c7] text-white">
+                                <Users size={18} />
+                            </div>
+                            <div>
+                                <span className="block text-xs font-medium text-neutral">Total Pengunjung</span>
+                                <b className="text-lg text-ink font-bold">
+                                    {(selectedItem.participants ?? 0).toLocaleString('id-ID')} Orang
+                                </b>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            )}
+        </div>
+    );
 }
