@@ -443,6 +443,9 @@ export default function createEventFeatures(deps) {
         const [busy, setBusy] = useState(false);
         const toast = useContext(ToastContext);
         const set = (key, value) => setForm(current => ({ ...current, [key]: value }));
+        const staffRequired = Number(form.staff_required);
+        const staffAssigned = form.staff_ids.length;
+        const staffCountMismatch = form.staff_required === '' || staffAssigned !== staffRequired;
 
         async function loadMeta() {
             setLoadingMeta(true);
@@ -461,6 +464,11 @@ export default function createEventFeatures(deps) {
         useEffect(() => { loadMeta(); }, [form.event_date, form.start_time, form.end_time]);
 
         async function save(submit) {
+            if (staffCountMismatch) {
+                setErrors(current => ({ ...current, staff_ids: `Jumlah staf yang ditugaskan harus sama dengan jumlah staf dibutuhkan (${staffRequired}).` }));
+                setMessage('Sesuaikan jumlah staf yang ditugaskan sebelum menyimpan draf atau mengajukan acara.');
+                return;
+            }
             setBusy(true);
             setErrors({});
             setMessage('');
@@ -557,7 +565,7 @@ export default function createEventFeatures(deps) {
                         <Field label="Jumlah staf dibutuhkan" error={errors.staff_required}>
                             <input type="number" min="0" max="100" className="field" value={form.staff_required} onChange={e => set('staff_required', e.target.value)} />
                         </Field>
-                        <Field label="Staf yang ditugaskan" error={errors.staff_ids} hint={`${form.staff_ids.length}/${form.staff_required || 0} staf dipilih`}>
+                        <Field label="Staf yang ditugaskan" error={errors.staff_ids} hint={`${staffAssigned}/${form.staff_required || 0} staf dipilih`}>
                             <div className="max-h-44 overflow-auto rounded-md border border-line p-2">
                                 {loadingMeta ? (
                                     <div className="p-3 text-sm text-neutral">Memeriksa ketersediaan…</div>
@@ -586,6 +594,11 @@ export default function createEventFeatures(deps) {
                                     <p className="p-3 text-sm text-neutral">Tidak ada staf aktif.</p>
                                 )}
                             </div>
+                            {staffCountMismatch && (
+                                <p className="mt-2 text-sm font-medium text-red-600" role="alert">
+                                    {form.staff_required === '' ? 'Isi jumlah staf yang dibutuhkan dan tugaskan staf dengan jumlah yang sama.' : `Jumlah staf yang dipilih (${staffAssigned}) harus sama dengan jumlah staf yang dibutuhkan (${staffRequired}).`}
+                                </p>
+                            )}
                         </Field>
                     </div>
                 </FormSection>
@@ -601,8 +614,8 @@ export default function createEventFeatures(deps) {
                 </FormSection>
                 <div className="sticky -bottom-6 -mx-6 mt-6 flex flex-col-reverse gap-2 border-t border-line bg-white px-6 py-4 sm:flex-row sm:justify-end">
                     <button disabled={busy} className="btn btn-secondary" onClick={close}>Batal</button>
-                    {!isRevision && <button disabled={busy} className="btn btn-secondary" onClick={() => save(false)}>Simpan Draf</button>}
-                    <button disabled={busy} className="btn btn-primary" onClick={() => save(true)}>
+                    {!isRevision && <button disabled={busy || staffCountMismatch} className="btn btn-secondary" onClick={() => save(false)}>Simpan Draf</button>}
+                    <button disabled={busy || staffCountMismatch} className="btn btn-primary" onClick={() => save(true)}>
                         {busy ? <><Spinner />Menyimpan…</> : isRevision ? 'Simpan & Ajukan Ulang' : 'Ajukan untuk Persetujuan'}
                     </button>
                 </div>
